@@ -1195,14 +1195,31 @@ const SCATTER = [
     const lede = document.querySelector<HTMLElement>("[data-intro-lede]");
     const mark = document.querySelector<HTMLElement>("[data-intro-mark]");
     if (lede && mark) {
+      // Measure word by word and group by line: the visible text width, the same in every browser
+      // (Safari can report a whole wrapped line as the full paragraph width).
       const fit = () => {
+        const text = lede.firstChild;
+        if (!text || text.nodeType !== Node.TEXT_NODE) return;
+        const str = text.textContent ?? "";
         const r = document.createRange();
-        r.selectNodeContents(lede);
-        const w = Math.max(...[...r.getClientRects()].map((b) => b.width));
-        if (w > 0) mark.style.setProperty("--lede-w", `${Math.round(w)}px`);
+        const lines = new Map<number, [number, number]>();
+        const re = /\S+/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(str))) {
+          r.setStart(text, m.index);
+          r.setEnd(text, m.index + m[0].length);
+          const b = r.getBoundingClientRect();
+          const key = Math.round(b.top);
+          const l = lines.get(key);
+          lines.set(key, l ? [Math.min(l[0], b.left), Math.max(l[1], b.right)] : [b.left, b.right]);
+        }
+        const w = Math.max(0, ...[...lines.values()].map(([a, b]) => b - a));
+        if (w > 0) mark.style.setProperty("--lede-w", `${Math.floor(w)}px`);
       };
       fit();
       new ResizeObserver(fit).observe(lede);
+      let t = 0;
+      addEventListener("resize", () => (clearTimeout(t), (t = window.setTimeout(fit, 150))));
       document.fonts?.ready.then(fit);
     }
   }
