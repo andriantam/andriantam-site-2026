@@ -22,7 +22,9 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@gltf-transform/cli": "^4.5.1",
-    "node-web-audio-api": "^2.2.0",
     "typescript": "^6.0.3"
+  },
+  "optionalDependencies": {
+    "node-web-audio-api": "^2.2.0"
   }
 }

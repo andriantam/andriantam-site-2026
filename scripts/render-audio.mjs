@@ -1,6 +1,6 @@
 // Renders the simulator's sounds into public/sim/audio (run after changing src/scripts/sim/sound-synth.ts):
 //   node scripts/render-audio.mjs
-// Uses node-web-audio-api to run the same Web Audio recipes as a browser would, then macOS's afconvert to
+// Uses node-web-audio-api (an optional dependency, so a failed install never breaks the site build) to run the same Web Audio recipes as a browser would, then macOS's afconvert to
 // compress the scenery loops to AAC (.m4a). Effects stay as one small WAV so they start instantly.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
