@@ -911,6 +911,14 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     player.yaw -= lookDX * sens;
     player.pitch = clamp(player.pitch - lookDY * sens, -1.45, 1.45);
     lookDX = lookDY = 0;
+    // Gyro: turning the phone turns the camera, one to one, like aiming a real camera.
+    if (gyroYaw || gyroPitch) {
+      if (!driving && started && preview.hidden) {
+        player.yaw += gyroYaw;
+        player.pitch = clamp(player.pitch + gyroPitch, -1.45, 1.45);
+      }
+      gyroYaw = gyroPitch = 0;
+    }
 
     // Move
     let mx = 0, mz = 0;
@@ -1114,6 +1122,52 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   $("[data-exit]").addEventListener("click", exitFull);
   $("[data-panel-toggle]").addEventListener("click", () => root.classList.toggle("panel-open"));
 
+  // ---------- Gyro ----------
+  // Aim by moving the phone. Uses the gyroscope's rotation rate (not absolute orientation), so it adds to
+  // dragging rather than fighting it, and works the same held upright or sideways.
+  let gyroYaw = 0, gyroPitch = 0, gyroOn = false;
+  const gyroBtn = $<HTMLButtonElement>("[data-gyro]");
+  const DEG = Math.PI / 180;
+  function onMotion(e: DeviceMotionEvent) {
+    const r = e.rotationRate;
+    if (!r || r.beta == null || r.gamma == null) return;
+    const iv = e.interval || 0;
+    const dt = Math.min(0.1, iv > 1 ? iv / 1000 : iv || 0.016); // milliseconds on most browsers, seconds on some
+    const dead = (v: number) => (Math.abs(v) < 0.4 ? 0 : v); // ignore sensor noise when held still
+    const bx = dead(r.beta) * DEG * dt, gy = dead(r.gamma) * DEG * dt; // about the device's x and y axes
+    const angle = (screen.orientation?.angle ?? (window as unknown as { orientation?: number }).orientation ?? 0) as number;
+    // Map device axes to the screen: yaw turns about the screen's up axis, pitch about its right axis.
+    if (angle === 90) (gyroYaw += bx), (gyroPitch -= gy);
+    else if (angle === 270 || angle === -90) (gyroYaw -= bx), (gyroPitch += gy);
+    else if (angle === 180) (gyroYaw -= gy), (gyroPitch -= bx);
+    else (gyroYaw += gy), (gyroPitch += bx);
+  }
+  function showGyro(label?: string) {
+    gyroBtn.setAttribute("aria-pressed", String(gyroOn));
+    gyroBtn.textContent = label ?? (gyroOn ? "Gyro on" : "Gyro off");
+  }
+  async function toggleGyro() {
+    if (gyroOn) {
+      removeEventListener("devicemotion", onMotion);
+      gyroOn = false;
+      return showGyro();
+    }
+    // iPhone only gives motion data to secure (https) pages, after asking permission from a tap.
+    if (!isSecureContext) return showGyro("Gyro needs https");
+    const DM = (window as unknown as { DeviceMotionEvent?: { requestPermission?: () => Promise<string> } }).DeviceMotionEvent;
+    if (!DM) return showGyro("No gyro");
+    try {
+      if (typeof DM.requestPermission === "function" && (await DM.requestPermission()) !== "granted") return showGyro("Gyro blocked");
+    } catch {
+      return showGyro("Gyro blocked");
+    }
+    addEventListener("devicemotion", onMotion);
+    gyroOn = true;
+    showGyro();
+  }
+  gyroBtn.addEventListener("click", toggleGyro);
+  showGyro();
+
   // ---------- Sound ----------
   // Plays only while the game is started and on screen; the speaker button (or M) mutes it, remembered per browser.
   const soundBtn = $<HTMLButtonElement>("[data-sound]");
@@ -1141,7 +1195,8 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     (window as unknown as Record<string, unknown>).__sim = {
       cam, player, shoot, setLens, step, toggleFlash, start: () => startBtn.click(), world, renderer, car, gallery,
       toggleOrientation, tilt, level, balance, enterFull, exitFull, ladders: world.ladders,
-      setTime, enterCar, exitCar, toggleLights, keys, camera, sound, toggleSound,
+      setTime, enterCar, exitCar, toggleLights, keys, camera, toggleGyro, gyro: () => gyroOn,
+      motion: onMotion, sound, toggleSound,
       driving: () => driving,
       look: (dx: number, dy: number) => ((lookDX += dx), (lookDY += dy)),
       meter: () => meterEV,

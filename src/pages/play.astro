@@ -105,6 +105,7 @@ const schema = [
             <button type="button" class="walk" data-touch-btn="ladder">Ladder</button>
             <button type="button" class="walk" data-touch-btn="carry">Carry</button>
             <button type="button" class="walk" data-touch-btn="drive">Drive</button>
+            <button type="button" class="walk gyro" data-gyro aria-pressed="false">Gyro off</button>
             <button type="button" class="drv" data-touch-btn="drive">Get out</button>
             <button type="button" class="drv" data-touch-btn="lights">Lights</button>
           </div>
@@ -125,7 +126,7 @@ const schema = [
               <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T · <b>Sound</b> M</p>
             </div>
             <div class="keys mob">
-              <p>Left thumb: walk. Drag anywhere else to look, twist two fingers to tilt, tap Take photo to shoot.</p>
+              <p>Left thumb: walk. Drag anywhere else to look (or tap Gyro and move your phone), twist two fingers to tilt, tap Take photo to shoot.</p>
               <p>Settings has lenses, exposure and the frame. The speaker turns sound on or off, and ✕ minimises the game so you can see your photos.</p>
             </div>
           </div>
@@ -579,6 +580,11 @@ const schema = [
     background: rgba(0, 0, 0, 0.35);
     color: #fff;
     min-width: 52px;
+  }
+  .tbtns .gyro[aria-pressed="true"] {
+    background: var(--gold);
+    color: var(--gold-ink);
+    border-color: var(--gold);
   }
   .tbtns .drv,
   :global(.is-driving) .tbtns .walk {
@@ -1593,6 +1599,18 @@ const schema = [
 
 <script>
   import { mountSim } from "../scripts/sim/index";
+  // No zooming on the simulator page: pinch and double-tap zoom get in the way of playing.
+  // iPhone ignores "user-scalable=no", so block its pinch gestures and multi-finger page moves directly.
+  {
+    const stop = (e: Event) => e.preventDefault();
+    for (const type of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(type, stop, { passive: false });
+    document.addEventListener("touchmove", (e) => e.touches.length > 1 && e.preventDefault(), { passive: false });
+    document.addEventListener("dblclick", stop, { passive: false });
+    document.querySelector('meta[name="viewport"]')?.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+    );
+  }
   const root = document.querySelector<HTMLElement>("[data-sim]");
   const galleryRoot = document.querySelector<HTMLElement>("[data-gallery]");
   if (root && galleryRoot) {
