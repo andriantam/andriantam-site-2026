@@ -1100,12 +1100,14 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     document.documentElement.classList.add("sim-full");
     root.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {}); // Android and desktop; iPhone uses the fixed layout
     root.classList.toggle("panel-open", !mobile);
+    $("[data-panel-toggle]").setAttribute("aria-expanded", String(!mobile));
     followPhone();
   }
   function exitFull() {
     if (!full) return;
     full = false;
     root.classList.remove("is-full", "panel-open");
+    $("[data-panel-toggle]").setAttribute("aria-expanded", "false");
     document.documentElement.classList.remove("sim-full");
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     keys.clear();
@@ -1120,7 +1122,10 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   });
   $("[data-full]").addEventListener("click", () => (full ? exitFull() : enterFull()));
   $("[data-exit]").addEventListener("click", exitFull);
-  $("[data-panel-toggle]").addEventListener("click", () => root.classList.toggle("panel-open"));
+  $("[data-panel-toggle]").addEventListener("click", (e) => {
+    const open = root.classList.toggle("panel-open");
+    (e.currentTarget as HTMLElement).setAttribute("aria-expanded", String(open));
+  });
 
   // ---------- Gyro ----------
   // Aim by moving the phone. Uses the gyroscope's rotation rate (not absolute orientation), so it adds to

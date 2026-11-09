@@ -72,11 +72,11 @@ const schema = [
         </div>
         <!-- Tapped by script when the shutter fires: on iPhone (iOS 18+) toggling a switch gives a haptic tick. -->
         <label class="haptic" data-haptic aria-hidden="true"><input type="checkbox" switch tabindex="-1" /></label>
+        <button type="button" class="settings-btn" data-panel-toggle aria-expanded="false">Camera settings</button>
         <div class="tools">
           <button type="button" class="tool sound-btn" data-sound aria-pressed="true" aria-label="Sound on. Turn sound off" title="Sound (M)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" /><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path class="mute" d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
           </button>
-          <button type="button" class="tool settings-btn" data-panel-toggle aria-label="Camera settings">Settings</button>
           <button type="button" class="tool full-btn" data-full aria-label="Full screen">⛶</button>
           <button type="button" class="tool exit-btn" data-exit aria-label="Minimise the game and see your photos">✕</button>
         </div>
@@ -756,8 +756,29 @@ const schema = [
   .exit-btn {
     display: none;
   }
-  :global(.is-full) .settings-btn,
   :global(.is-full) .exit-btn {
+    display: block;
+  }
+  /* Full screen: Camera settings sits at the bottom, between the joystick and Take photo. */
+  .settings-btn {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    bottom: calc(max(1.2rem, calc(env(safe-area-inset-bottom) + 0.6rem)) + 28px);
+    z-index: 8;
+    height: 40px;
+    padding: 0 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  :global(.is-full) .settings-btn {
     display: block;
   }
   :global(.is-full) .full-btn {
@@ -769,7 +790,7 @@ const schema = [
     border-color: var(--gold);
   }
   .top-hud {
-    right: 11.5rem !important;
+    right: 7.5rem !important;
   }
   .chip {
     position: absolute;
@@ -862,7 +883,7 @@ const schema = [
   .sim:global(.is-full) .panel {
     position: absolute;
     left: 50%;
-    bottom: max(0.6rem, env(safe-area-inset-bottom));
+    bottom: calc(max(1.2rem, calc(env(safe-area-inset-bottom) + 0.6rem)) + 28px + 48px); /* above the Camera settings button */
     translate: -50% 0;
     z-index: 7;
     width: min(760px, calc(100vw - 1.2rem));
