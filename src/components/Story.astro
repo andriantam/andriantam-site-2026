@@ -76,8 +76,8 @@ const SCATTER = [
         </div>
         <div class="copy wrap center">
           <p class="eyebrow">Photographer · Engineer · Brand builder</p>
-          <h1 id="st-intro" class="title"><img class="wordmark" src="/wordmark.png" alt="andriantam" width="2400" height="196" /></h1>
-          <p class="lede">Fifteen years behind the camera, a decade of building software. Here's how the two came together.</p>
+          <h1 id="st-intro" class="title"><img class="wordmark" data-intro-mark src="/wordmark.png" alt="andriantam" width="2400" height="196" /></h1>
+          <p class="lede" data-intro-lede>Fifteen years behind the camera, a decade of building software. Here's how the two came together.</p>
         </div>
         <p class="hint" aria-hidden="true"><span><span class="touch-only">Swipe up</span><span class="mouse-only">Scroll</span> for the story</span><i></i></p>
       </article>
@@ -399,7 +399,7 @@ const SCATTER = [
   /* The opening title is the andriantam wordmark */
   .title .wordmark {
     display: block;
-    width: min(78vw, 52rem);
+    width: var(--lede-w, min(78vw, 52rem)); /* set by script to the description's widest line */
     height: auto;
     margin: 0.4em auto 0.15em;
   }
@@ -1190,6 +1190,23 @@ const SCATTER = [
 </style>
 
 <script>
+  // The opening wordmark is exactly as wide as the description's widest line.
+  {
+    const lede = document.querySelector<HTMLElement>("[data-intro-lede]");
+    const mark = document.querySelector<HTMLElement>("[data-intro-mark]");
+    if (lede && mark) {
+      const fit = () => {
+        const r = document.createRange();
+        r.selectNodeContents(lede);
+        const w = Math.max(...[...r.getClientRects()].map((b) => b.width));
+        if (w > 0) mark.style.setProperty("--lede-w", `${Math.round(w)}px`);
+      };
+      fit();
+      new ResizeObserver(fit).observe(lede);
+      document.fonts?.ready.then(fit);
+    }
+  }
+
   const story = document.querySelector<HTMLElement>("[data-story]");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (story && !reduced) initStory(story);

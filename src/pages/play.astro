@@ -70,10 +70,9 @@ const schema = [
           <span data-stance></span>
           <span class="prompt" data-prompt></span>
         </div>
+        <!-- Tapped by script when the shutter fires: on iPhone (iOS 18+) toggling a switch gives a haptic tick. -->
+        <label class="haptic" data-haptic aria-hidden="true"><input type="checkbox" switch tabindex="-1" /></label>
         <div class="tools">
-          <button type="button" class="tool sound-btn" data-sound aria-pressed="true" aria-label="Sound on. Turn sound off" title="Sound (M)">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" /><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path class="mute" d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
-          </button>
           <button type="button" class="tool settings-btn" data-panel-toggle aria-label="Camera settings">Settings</button>
           <button type="button" class="tool full-btn" data-full aria-label="Full screen">⛶</button>
           <button type="button" class="tool exit-btn" data-exit aria-label="Minimise the game and see your photos">✕</button>
@@ -108,11 +107,11 @@ const schema = [
               <p><b>Move</b> W A S D, Shift to run · <b>Jump</b> Space · <b>Crouch</b> C · <b>Lie flat</b> Z</p>
               <p><b>Portrait or landscape</b> V · <b>Tilt</b> Q and X, L to level · <b>Balance exposure</b> B</p>
               <p><b>Ladder</b> E climb, R pick up or put down · <b>Car</b> E to get in, W S A D, Space brake, H lights</p>
-              <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T · <b>Sound</b> M</p>
+              <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T</p>
             </div>
             <div class="keys mob">
               <p>Left thumb: walk. Drag anywhere else to look, twist two fingers to tilt, tap the view or the round button to shoot.</p>
-              <p>Settings has lenses, exposure and the frame. The speaker turns sound on or off, and ✕ minimises the game so you can see your photos.</p>
+              <p>Settings has lenses, exposure and the frame. ✕ minimises the game so you can see your photos.</p>
             </div>
           </div>
         </div>
@@ -626,21 +625,13 @@ const schema = [
     color: #fff;
     cursor: pointer;
   }
-  .sound-btn {
-    display: grid;
-    place-items: center;
-    padding: 0 0.5rem;
-  }
-  .sound-btn svg {
-    width: 20px;
-    height: 20px;
-  }
-  .sound-btn .mute,
-  .sound-btn:global(.off) .waves {
-    display: none;
-  }
-  .sound-btn:global(.off) .mute {
-    display: inline;
+  .haptic {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
   .settings-btn,
   .exit-btn {
@@ -659,7 +650,7 @@ const schema = [
     border-color: var(--gold);
   }
   .top-hud {
-    right: 11.5rem !important;
+    right: 9rem !important;
   }
   .chip {
     position: absolute;
