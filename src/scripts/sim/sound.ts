@@ -14,17 +14,9 @@ const BASE = "/sim/audio/";
 type Effect = keyof typeof EFFECTS;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-/** Real Safari (iPhone, iPad or Mac) only. Other browsers, including Chrome and Firefox on iPhone, lag with
- *  game audio on, so they get no sound: no audio engine and no sound downloads. */
-export function soundSupported() {
-  const ua = navigator.userAgent;
-  return /Safari\//.test(ua) && /Version\//.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|EdgA|Edg\/|OPR|OPiOS|Android|GSA\//.test(ua);
-}
-
 export class Sound {
   ctx: AudioContext | null = null;
   enabled = true;
-  readonly supported = soundSupported();
   private master!: GainNode;
   private sfx!: GainNode;
   private effects: AudioBuffer | null = null;
@@ -46,7 +38,6 @@ export class Sound {
 
   /** Creates the audio engine. Call from a click or tap (browsers only allow sound after a gesture). */
   unlock() {
-    if (!this.supported) return;
     try {
       if (!this.ctx) this.build();
       else if (this.ctx.state === "suspended" && this.wanted) this.ctx.resume().catch(() => {});
@@ -89,7 +80,6 @@ export class Sound {
   }
 
   toggle() {
-    if (!this.supported) return false;
     this.enabled = !this.enabled;
     try {
       localStorage.setItem(STORE, this.enabled ? "on" : "off");

@@ -389,7 +389,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     else if (k === "Escape" && !preview.hidden) closePreview();
     else if (k === "Escape" && full && !document.fullscreenElement) exitFull();
     else if (k === "KeyF") toggleFlash();
-    else if (k === "KeyM" && sound.supported) toggleSound();
+    else if (k === "KeyM") toggleSound();
     else if (k === "BracketLeft") step("aperture", -1);
     else if (k === "BracketRight") step("aperture", 1);
     else if (k === "Comma") step("shutter", -1);
@@ -1189,7 +1189,6 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   soundBtn.classList.toggle("off", !sound.enabled);
   soundBtn.setAttribute("aria-label", sound.enabled ? "Sound on. Turn sound off" : "Sound off. Turn sound on");
   soundBtn.addEventListener("click", toggleSound);
-  if (!sound.supported) soundBtn.remove(); // sound is Safari-only (see sound.ts)
   new IntersectionObserver(([e]) => ((onScreen = e.isIntersecting), syncSound()), { threshold: 0.3 }).observe(stage);
   schedule((t) => {
     last = t;
