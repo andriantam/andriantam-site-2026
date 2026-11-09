@@ -1,0 +1,36 @@
+# Rebuilds the site every day so new Blogger posts and Flickr albums appear,
+# and commits refreshed data snapshots (the backup used if an API is down).
+name: Daily rebuild
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 Malaysia time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          BLOGGER_API_KEY: ${{ secrets.BLOGGER_API_KEY }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
+          FLICKR_USER_ID: ${{ secrets.FLICKR_USER_ID }}
+      # Committing changed snapshots triggers Cloudflare Pages to deploy the fresh build.
+      - name: Commit refreshed snapshots
+        run: |
+          git config user.name "andriantam-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/data/snapshots
+          git diff --cached --quiet || git commit -m "chore: refresh Blogger and Flickr snapshots"
+          git push

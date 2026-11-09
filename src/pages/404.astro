@@ -1,0 +1,11 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/PageHero.astro";
+import header from "../assets/photos/mountains.jpg";
+---
+
+<Base title="Page not found" description="This page doesn't exist." noindex>
+  <PageHero image={header} eyebrow="404" title="Off the map" intro="This page doesn't exist, or it moved when the site was rebuilt.">
+    <p><a class="btn btn-primary" href="/">Go home</a> <a class="btn" href="/portfolio">See the portfolio</a></p>
+  </PageHero>
+</Base>

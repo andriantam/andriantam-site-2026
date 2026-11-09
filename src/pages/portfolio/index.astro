@@ -1,0 +1,220 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import FlickrImg from "../../components/FlickrImg.astro";
+import { getAlbums, CATEGORY_LABELS } from "../../lib/flickr";
+import { breadcrumbSchema, abs, PERSON_ID } from "../../lib/schema";
+import { DEV_PROJECTS } from "../../data/projects";
+import { FLAGS } from "../../config/site";
+import { VIDEOS } from "../../data/content";
+import header from "../../assets/photos/portfolio-header.jpg";
+
+const albums = await getAlbums();
+const counts = new Map<string, number>();
+for (const a of albums) for (const c of a.categories) counts.set(c, (counts.get(c) ?? 0) + 1);
+const cats = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+const devProjects = FLAGS.showDevProjects ? DEV_PROJECTS : [];
+const totalPhotos = albums.reduce((n, a) => n + a.count, 0);
+
+const filterCss = cats
+  .map((c) => `.portfolio:has(#f-${c}:checked) .album:not([data-cats~="${c}"]){display:none}`)
+  .join("\n") + `\n.portfolio:has(#f-video:checked) .album:not([data-cats~="video"]){display:none}`;
+
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Portfolio", path: "/portfolio" },
+  ]),
+  {
+    "@type": "CollectionPage",
+    name: "Portfolio of Andrian Tam",
+    url: abs("/portfolio"),
+    author: { "@id": PERSON_ID },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: albums.map((a, i) => ({ "@type": "ListItem", position: i + 1, url: abs(`/portfolio/${a.slug}`), name: a.title })),
+    },
+  },
+];
+---
+
+<Base
+  title="Portfolio"
+  description={`Automotive, motorsport, event, wedding and product photography by Andrian Tam, plus videography. ${albums.length} albums from Malaysia and beyond.`}
+  schema={schema}
+>
+  <PageHero
+    image={header}
+    eyebrow="Portfolio"
+    title="Photography and film"
+    intro={`${albums.length} albums and ${totalPhotos.toLocaleString("en")} photos covering automotive and motorsport, corporate events, weddings, products and food, plus video work for brands and racing teams.`}
+    crumbs={[{ name: "Home", path: "/" }, { name: "Portfolio", path: "/portfolio" }]}
+  />
+
+  <style set:html={filterCss}></style>
+
+  <section class="portfolio wrap">
+    <fieldset class="filters" aria-label="Filter albums">
+      <legend class="sr-only">Filter by category</legend>
+      <input type="radio" name="cat" id="f-all" checked /><label for="f-all">All</label>
+      {
+        cats.map((c) => (
+          <>
+            <input type="radio" name="cat" id={`f-${c}`} />
+            <label for={`f-${c}`}>{CATEGORY_LABELS[c] ?? c}</label>
+          </>
+        ))
+      }
+      <input type="radio" name="cat" id="f-video" /><label for="f-video">Video</label>
+    </fieldset>
+
+    <ul class="albums">
+      <li class="album video-card" data-cats="video">
+        <a href="/portfolio/videography">
+          <img src={`https://i.ytimg.com/vi/${VIDEOS[0].id}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" />
+          <span class="meta">
+            <span class="cat">Video</span>
+            <span class="title">Videography</span>
+            <span class="count">{VIDEOS.length} films and reels</span>
+          </span>
+        </a>
+      </li>
+      {
+        albums.map((a) =>
+          a.cover ? (
+            <li class="album reveal" data-cats={a.categories.join(" ")}>
+              <a href={`/portfolio/${a.slug}`}>
+                <FlickrImg photo={a.cover} alt={`${a.title}, photographed by Andrian Tam`} sizes="(min-width: 1100px) 380px, (min-width: 700px) 50vw, 100vw" />
+                <span class="meta">
+                  <span class="cat">{a.categories.map((c) => CATEGORY_LABELS[c] ?? c).join(" · ")}</span>
+                  <span class="title">{a.title}</span>
+                  <span class="count">{a.count} photos</span>
+                </span>
+              </a>
+            </li>
+          ) : null,
+        )
+      }
+    </ul>
+
+    {
+      devProjects.length > 0 && (
+        <section class="dev" aria-labelledby="dev-title">
+          <h2 id="dev-title">Web and software</h2>
+          <ul>
+            {devProjects.map((p) => (
+              <li>
+                <a href={`/portfolio/${p.type}/${p.slug}`}>
+                  <span class="cat">{p.type === "web" ? "Web" : "Software"} · {p.year}</span>
+                  <span class="title">{p.title}</span>
+                  <span class="count">{p.summary}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </section>
+</Base>
+
+<style>
+  .portfolio {
+    padding-bottom: 6rem;
+  }
+  .filters {
+    border: 0;
+    padding: 0;
+    margin: 0 0 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .filters input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .filters label {
+    padding: 0.45rem 0.95rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 0.88rem;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filters input:checked + label {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--gold-ink);
+  }
+  .filters input:focus-visible + label {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .albums,
+  .dev ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: 1rem;
+  }
+  .album a {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--radius);
+    text-decoration: none;
+    background: var(--ink-2);
+  }
+  .album :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.8s var(--ease);
+  }
+  .album a:hover :global(img) {
+    transform: scale(1.05);
+  }
+  .meta {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 3rem 1rem 0.9rem;
+    background: linear-gradient(to top, rgba(11, 10, 14, 0.92), transparent);
+    display: grid;
+    gap: 0.1rem;
+  }
+  .cat {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .count {
+    font-size: 0.82rem;
+    color: var(--text-2);
+  }
+  .dev {
+    margin-top: 5rem;
+  }
+  .dev a {
+    display: grid;
+    gap: 0.3rem;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+  }
+</style>

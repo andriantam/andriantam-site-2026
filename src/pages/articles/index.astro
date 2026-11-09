@@ -1,0 +1,137 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { getArticles, sizedBloggerImage } from "../../lib/blogger";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+import header from "../../assets/photos/article-header.jpg";
+
+const articles = await getArticles();
+const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Articles", path: "/articles" },
+  ]),
+  {
+    "@type": "Blog",
+    name: "Articles by Andrian Tam",
+    url: abs("/articles"),
+    author: { "@id": PERSON_ID },
+    blogPost: articles.slice(0, 20).map((a) => ({
+      "@type": "BlogPosting",
+      headline: a.title,
+      url: abs(`/articles/${a.slug}`),
+      datePublished: a.published,
+    })),
+  },
+];
+---
+
+<Base
+  title="Articles"
+  description="Guides and notes from Andrian Tam on photography, cars, driving across borders, apps and tech."
+  schema={schema}
+>
+  <PageHero
+    image={header}
+    eyebrow="Articles"
+    title="Notes from the road and the desk"
+    intro="Practical guides and stories on photography, cars and driving, apps and tech."
+    compact
+    crumbs={[{ name: "Home", path: "/" }, { name: "Articles", path: "/articles" }]}
+  />
+
+  <section class="wrap list">
+    {articles.length === 0 && <p class="lede">No articles yet.</p>}
+    <ul>
+      {
+        articles.map((a, i) => (
+          <li class:list={["card reveal", { first: i === 0 }]}>
+            <a href={`/articles/${a.slug}`}>
+              {a.image && (
+                <img
+                  src={sizedBloggerImage(a.image, i === 0 ? 1400 : 720)}
+                  srcset={`${sizedBloggerImage(a.image, 480)} 480w, ${sizedBloggerImage(a.image, 720)} 720w, ${sizedBloggerImage(a.image, 1400)} 1400w`}
+                  sizes={i === 0 ? "(min-width: 900px) 60vw, 100vw" : "(min-width: 900px) 33vw, 100vw"}
+                  alt=""
+                  loading={i < 2 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              )}
+              <span class="body">
+                <time datetime={a.published}>{fmt(a.published)}</time>
+                <span class="title">{a.title}</span>
+                <span class="excerpt">{a.excerpt}</span>
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>
+
+<style>
+  .list {
+    padding-bottom: 6rem;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: 2.5rem 1.5rem;
+  }
+  .card a {
+    display: grid;
+    gap: 1rem;
+    text-decoration: none;
+  }
+  .card img {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    border-radius: var(--radius);
+    background: var(--ink-2);
+  }
+  .first {
+    grid-column: 1 / -1;
+  }
+  .first a {
+    grid-template-columns: 1.6fr 1fr;
+    align-items: center;
+    gap: 2rem;
+  }
+  .first .title {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+  }
+  .body {
+    display: grid;
+    gap: 0.4rem;
+  }
+  time {
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .title {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+  .card a:hover .title {
+    color: var(--gold);
+  }
+  .excerpt {
+    color: var(--text-2);
+    font-size: 0.95rem;
+  }
+  @media (max-width: 760px) {
+    .first a {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,51 @@
+---
+// Web and software project pages. Only generated when FLAGS.showDevProjects is on.
+import Base from "../../../layouts/Base.astro";
+import PageHero from "../../../components/PageHero.astro";
+import { DEV_PROJECTS, type DevProject } from "../../../data/projects";
+import { FLAGS } from "../../../config/site";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../../lib/schema";
+
+export function getStaticPaths() {
+  if (!FLAGS.showDevProjects) return [];
+  return DEV_PROJECTS.map((p) => ({ params: { type: p.type, slug: p.slug }, props: { project: p } }));
+}
+
+const { project } = Astro.props as { project: DevProject };
+const label = project.type === "web" ? "Web" : "Software";
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Portfolio", path: "/portfolio" },
+    { name: project.title, path: `/portfolio/${project.type}/${project.slug}` },
+  ]),
+  {
+    "@type": project.type === "web" ? "WebSite" : "SoftwareSourceCode",
+    name: project.title,
+    description: project.summary,
+    url: project.url ?? abs(`/portfolio/${project.type}/${project.slug}`),
+    ...(project.repo ? { codeRepository: project.repo } : {}),
+    creator: { "@id": PERSON_ID },
+    keywords: project.stack.join(", "),
+  },
+];
+---
+
+<Base title={project.title} description={project.summary} schema={schema}>
+  <PageHero
+    eyebrow={`${label} · ${project.year}`}
+    title={project.title}
+    intro={project.summary}
+    compact
+    crumbs={[{ name: "Home", path: "/" }, { name: "Portfolio", path: "/portfolio" }, { name: project.title, path: "" }]}
+  />
+  <section class="wrap prose">
+    <p><strong>Stack:</strong> {project.stack.join(", ")}</p>
+    {project.client && <p><strong>Client:</strong> {project.client}</p>}
+    {project.body && <Fragment set:html={project.body} />}
+    <p>
+      {project.url && <a href={project.url} target="_blank" rel="noopener">Visit the site ↗</a>}
+      {project.repo && <a href={project.repo} target="_blank" rel="noopener"> View the code ↗</a>}
+    </p>
+  </section>
+</Base>

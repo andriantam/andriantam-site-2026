@@ -1,0 +1,37 @@
+---
+// A fixed in-article AdSense unit. Renders nothing until you add a slot id in src/config/site.ts.
+// Space is reserved up front so the page doesn't jump when the ad loads.
+import { ADS } from "../config/site";
+interface Props {
+  slot: string;
+}
+const { slot } = Astro.props;
+---
+
+{
+  ADS.client && slot && (
+    <aside class="ad" aria-label="Advertisement">
+      <span class="ad-label">Advertisement</span>
+      <ins class="adsbygoogle" style="display:block;text-align:center" data-ad-layout="in-article" data-ad-format="fluid" data-ad-client={ADS.client} data-ad-slot={slot} />
+      <script is:inline>(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </aside>
+  )
+}
+
+<style>
+  .ad {
+    min-height: 280px;
+    margin: 2.5rem 0;
+    padding: 0.75rem 0;
+    border-block: 1px solid var(--line);
+  }
+  .ad-label {
+    display: block;
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+</style>

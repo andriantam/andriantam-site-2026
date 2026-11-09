@@ -1,0 +1,1495 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/PageHero.astro";
+import { abs, breadcrumbSchema, PERSON_ID } from "../lib/schema";
+import header from "../assets/photos/automotive-header.jpg";
+import { LENSES, TIMES } from "../scripts/sim/data";
+
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Play", path: "/play" },
+  ]),
+  {
+    "@type": "VideoGame",
+    name: "Photographer Simulator",
+    url: abs("/play"),
+    description:
+      "A browser-based 3D photography simulator. Walk around a car at a mountain-pass lay-by, drive it into position, pick the time of day, choose from seven prime lenses, set shutter speed, aperture, ISO and flash, and take photos rendered with physically based exposure, depth of field and motion blur. Photos are kept in a gallery and can be exported as a PDF shoot guide.",
+    genre: ["Simulation"],
+    gamePlatform: "Web browser",
+    applicationCategory: "Game",
+    operatingSystem: "Any",
+    author: { "@id": PERSON_ID },
+    offers: { "@type": "Offer", price: "0", priceCurrency: "MYR" },
+  },
+];
+---
+
+<Base
+  title="Photographer Simulator"
+  description="Walk around a car at a mountain pass from morning to night, drive it into position, pick a lens from 16mm to 200mm, set shutter, aperture, ISO and flash, and take real photos with physically based exposure, depth of field and motion blur. Export your shoot as a PDF guide. Built with three.js by Andrian Tam."
+  schema={schema}
+>
+  <PageHero
+    image={header}
+    eyebrow="Play"
+    title="Photographer Simulator"
+    intro="A car you can drive into position, a mountain-pass lay-by from morning to night, and a camera bag with seven lenses. Every photo is rendered from the 3D scene with real exposure, depth of field and motion blur."
+    compact
+    crumbs={[{ name: "Home", path: "/" }, { name: "Play", path: "/play" }]}
+  />
+
+  <section class="wrap sim-wrap">
+    <div class="sim" data-sim style="--ar:3 / 2;--roll:0rad">
+      <div class="stage" data-stage>
+        <!-- The frame keeps the photo's shape (3:2 or 2:3); everything outside it is the stage's dark surround. -->
+        <div class="frame" data-frame>
+          <canvas data-canvas tabindex="0" aria-label="3D photographer simulator view. Drag to look, click to take a photo."></canvas>
+          <div class="vf" aria-hidden="true">
+            <div class="grid"></div>
+            <div class="level"><i></i></div>
+            <div class="af" data-af></div>
+            <div class="vf-rec" data-rec></div>
+            <div class="vf-bar">
+              <span data-vf-lens></span>
+              <span data-vf-shutter></span>
+              <span data-vf-ap></span>
+              <span data-vf-iso></span>
+              <span class="meter" data-vf-meter><i></i><b data-vf-meterval></b></span>
+              <span class="fl" data-vf-flash></span>
+              <span data-vf-focus></span>
+            </div>
+            <div class="vf-boost" data-vf-boost hidden>Viewfinder brightened · photo will be darker</div>
+          </div>
+          <div class="flash-fx" data-flashfx aria-hidden="true"></div>
+        </div>
+
+        <div class="top-hud">
+          <span data-stance></span>
+          <span class="prompt" data-prompt></span>
+        </div>
+        <div class="tools">
+          <button type="button" class="tool settings-btn" data-panel-toggle aria-label="Camera settings">Settings</button>
+          <button type="button" class="tool full-btn" data-full aria-label="Full screen">⛶</button>
+          <button type="button" class="tool exit-btn" data-exit aria-label="Minimise the game and see your photos">✕</button>
+        </div>
+        <button type="button" class="chip" data-chip hidden aria-label="Review your latest photo"><img alt="" /></button>
+        <div class="develop" data-develop hidden><span>Developing</span><div class="bar"><i data-develop-bar></i></div></div>
+
+        <div class="touch" aria-hidden="true">
+          <div class="joy" data-joy><div class="knob" data-knob></div></div>
+          <div class="tbtns">
+            <button type="button" class="walk" data-touch-btn="jump">Jump</button>
+            <button type="button" class="walk" data-touch-btn="crouch">Crouch</button>
+            <button type="button" class="walk" data-touch-btn="prone">Lie flat</button>
+            <button type="button" class="walk" data-touch-btn="af">AF lock</button>
+            <button type="button" class="walk" data-touch-btn="ladder">Ladder</button>
+            <button type="button" class="walk" data-touch-btn="carry">Carry</button>
+            <button type="button" class="walk" data-touch-btn="drive">Drive</button>
+            <button type="button" class="drv" data-touch-btn="drive">Get out</button>
+            <button type="button" class="drv" data-touch-btn="lights">Lights</button>
+          </div>
+          <button type="button" class="brake-btn" data-touch-btn="brake">Brake</button>
+          <button type="button" class="shutter-btn" data-touch-btn="shutter" aria-label="Shutter"></button>
+        </div>
+
+        <div class="overlay" data-overlay>
+          <div class="card">
+            <p class="kicker">A shoot at the pass</p>
+            <p class="status" data-status role="status">Loading the simulator…</p>
+            <button type="button" class="btn btn-primary" data-start disabled>Loading…</button>
+            <div class="keys desk">
+              <p><b>Look</b> drag the view · <b>Shoot</b> click, or Enter · <b>Focus lock</b> hold right click</p>
+              <p><b>Move</b> W A S D, Shift to run · <b>Jump</b> Space · <b>Crouch</b> C · <b>Lie flat</b> Z</p>
+              <p><b>Portrait or landscape</b> V · <b>Tilt</b> Q and X, L to level · <b>Balance exposure</b> B</p>
+              <p><b>Ladder</b> E climb, R pick up or put down · <b>Car</b> E to get in, W S A D, Space brake, H lights</p>
+              <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T</p>
+            </div>
+            <div class="keys mob">
+              <p>Left thumb: walk. Drag anywhere else to look, twist two fingers to tilt, tap the view or the round button to shoot.</p>
+              <p>Settings has lenses, exposure and the frame. ✕ minimises the game so you can see your photos.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel>
+        <div class="scene-row">
+          <div class="times" role="group" aria-label="Time of day">
+            {TIMES.map((t) => <button type="button" data-time={t.id} aria-pressed={t.id === "evening" ? "true" : "false"} title={t.blurb}>{t.label}</button>)}
+          </div>
+          <button type="button" class="lights-toggle" data-lights aria-pressed="false">Car lights off</button>
+        </div>
+        <div class="frame-row">
+          <button type="button" class="pill" data-orient aria-pressed="false" title="Portrait or landscape (V)">Landscape</button>
+          <div class="dial tilt" role="group" aria-label="Camera tilt">
+            <span class="lbl">Tilt</span>
+            <button type="button" data-tilt="-1" aria-label="Tilt left">↺</button>
+            <b data-val="tilt">0°</b>
+            <button type="button" data-tilt="1" aria-label="Tilt right">↻</button>
+            <button type="button" class="level-btn" data-tilt="0">Level</button>
+          </div>
+          <button type="button" class="pill balance" data-balance title="Balanced exposure (B)">Balance exposure</button>
+        </div>
+        <div class="lenses" role="group" aria-label="Lens">
+          {LENSES.map((l, i) => <button type="button" data-lens={i} aria-pressed={i === 2 ? "true" : "false"}>{l.focal}mm<span>f/{l.maxAperture}</span></button>)}
+        </div>
+        <div class="dials">
+          <div class="dial"><span class="lbl">Shutter</span><button type="button" data-step="shutter" data-dir="-1" aria-label="Slower shutter">−</button><b data-val="shutter">1/60</b><button type="button" data-step="shutter" data-dir="1" aria-label="Faster shutter">+</button></div>
+          <div class="dial"><span class="lbl">Aperture</span><button type="button" data-step="aperture" data-dir="-1" aria-label="Wider aperture">−</button><b data-val="aperture">f/5.6</b><button type="button" data-step="aperture" data-dir="1" aria-label="Narrower aperture">+</button></div>
+          <div class="dial"><span class="lbl">ISO</span><button type="button" data-step="iso" data-dir="-1" aria-label="Lower ISO">−</button><b data-val="iso">100</b><button type="button" data-step="iso" data-dir="1" aria-label="Higher ISO">+</button></div>
+          <div class="dial"><button type="button" class="flash-toggle" data-flash aria-pressed="false">Flash off</button><button type="button" data-step="power" data-dir="1" aria-label="Lower flash power">−</button><b data-val="power">1/1</b><button type="button" data-step="power" data-dir="-1" aria-label="Higher flash power">+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="gallery" data-gallery aria-labelledby="gallery-title">
+      <div class="g-head">
+        <div>
+          <h2 id="gallery-title">Your shoot</h2>
+          <p class="g-sub">Kept in this browser only. <span data-g-count></span></p>
+          <p class="g-note" data-g-note></p>
+        </div>
+        <button type="button" class="btn btn-primary" data-g-export disabled>Export shoot guide</button>
+      </div>
+      <div class="g-bar">
+        <label class="g-all"><input type="checkbox" data-g-all disabled /> Select all</label>
+        <span class="g-selcount" data-g-selcount></span>
+        <button type="button" class="g-btn" data-g-download disabled>Download</button>
+        <button type="button" class="g-btn danger" data-g-delete disabled>Delete</button>
+        <label class="g-frame"><input type="checkbox" data-g-frame checked /> Settings frame on downloads</label>
+      </div>
+      <p class="g-empty" data-g-empty>Photos you take show up here. Open one to see it full screen with its histogram and settings.</p>
+      <ul class="g-grid" data-g-grid></ul>
+
+      <dialog class="lb" data-lb aria-label="Photo viewer">
+        <div class="lb-top">
+          <span class="lb-count" data-lb-count></span>
+          <div class="lb-tools">
+            <button type="button" data-lb-info aria-pressed="false">Info</button>
+            <button type="button" data-lb-dl>Download</button>
+            <button type="button" data-lb-del>Delete</button>
+            <button type="button" data-lb-fs aria-pressed="false">Full screen</button>
+            <button type="button" class="lb-x" data-lb-close aria-label="Close viewer">×</button>
+          </div>
+        </div>
+        <div class="lb-body">
+          <div class="lb-stage" data-lb-stage>
+            <button type="button" class="lb-nav prev" data-lb-prev aria-label="Previous photo">‹</button>
+            <figure class="lb-print">
+              <img data-lb-img alt="" />
+              <figcaption data-lb-cap></figcaption>
+            </figure>
+            <button type="button" class="lb-nav next" data-lb-next aria-label="Next photo">›</button>
+          </div>
+          <aside class="lb-info">
+            <canvas data-lb-hist width="256" height="60" aria-label="Histogram"></canvas>
+            <p class="clip" data-lb-clip></p>
+            <dl data-lb-meta></dl>
+          </aside>
+        </div>
+      </dialog>
+
+      <dialog class="ex" data-ex aria-labelledby="ex-title">
+        <form data-ex-form>
+          <h2 id="ex-title">Export shoot guide</h2>
+          <p class="ex-sub">A printable A4 PDF: a cover with your notes and a contact sheet, then every shot with its settings, camera position and light.</p>
+          <label>Event name <input name="event" required maxlength="120" placeholder="e.g. WRX golden hour shoot" /></label>
+          <label>Description <textarea name="description" rows="3" maxlength="1500" placeholder="What the shoot is for, the client, the look you're after"></textarea></label>
+          <label>Notes <textarea name="notes" rows="3" maxlength="2000" placeholder="Reminders for the day: kit, timing, permits, shot list"></textarea></label>
+          <fieldset>
+            <legend>Photos</legend>
+            <label class="radio"><input type="radio" name="scope" value="selected" data-ex-scope="selected" /> Selected (<span data-ex-selcount>0</span>)</label>
+            <label class="radio"><input type="radio" name="scope" value="all" data-ex-scope="all" /> Whole gallery (<span data-ex-allcount>0</span>)</label>
+          </fieldset>
+          <p class="ex-status" data-ex-status role="status"></p>
+          <div class="ex-actions">
+            <button type="button" class="btn" data-ex-cancel>Cancel</button>
+            <button type="submit" class="btn btn-primary" data-ex-go>Export PDF</button>
+          </div>
+        </form>
+      </dialog>
+
+      <div class="toast" data-toast role="status" hidden><span data-toast-msg></span><button type="button" data-toast-undo>Undo</button></div>
+    </section>
+
+    <div class="how prose">
+      <h2>How the camera works</h2>
+      <p>
+        Nothing here is faked with filters. When you press the shutter, the simulator renders the 3D scene dozens of times and
+        averages the results, the way a sensor collects light while the shutter is open.
+      </p>
+      <ul>
+        <li>
+          <strong>Exposure</strong> follows the real formula. The scene is lit at about EV 11.5, golden hour with the sun on the
+          horizon. Every stop of shutter, aperture or ISO doubles or halves the light, and anything brighter than the sensor can
+          hold blows out to white.
+        </li>
+        <li>
+          <strong>Depth of field</strong> comes from moving the camera across the lens opening for each sample while keeping the
+          focus plane fixed. Wide apertures and long lenses give shallow focus; stopped down, the out-of-focus highlights take the
+          shape of the aperture blades.
+        </li>
+        <li>
+          <strong>Motion blur</strong> uses your actual mouse or finger movement during the exposure. Hold still at 1/8 s, or
+          move during a 5 s exposure and watch it smear.
+        </li>
+        <li>
+          <strong>Flash</strong> follows the inverse-square law with a guide number of 60. It fires at the start of the exposure,
+          so it freezes what it lights even during a long shutter, and it can't sync faster than 1/250 s.
+        </li>
+        <li><strong>ISO</strong> brightens the image and adds noise that grows with the gain, as on a real sensor.</li>
+        <li>
+          <strong>Time of day</strong> swaps in a real HDR sky. The sun is measured from the photo and becomes the light that casts
+          shadows: about EV 14 mid-morning, EV 15 at noon, EV 11.5 at golden hour and EV -4 on a moonless night. At night the lay-by's
+          street light and the car's lamps are the main light, in real units (a 28 lux pool under the lamp, 12,000 cd low beams).
+        </li>
+        <li>
+          <strong>The car</strong> drives on a simple bicycle model, steering the front wheels and turning about the rear axle, so you
+          can park it where the light is best.
+        </li>
+      </ul>
+      <p>
+        Lenses: {LENSES.map((l) => l.name).join(", ")}, each with its own closest focusing distance and number of aperture blades.
+        Built with three.js. Car model:
+        based on <a href="https://sketchfab.com/3d-models/subaru-wrx-sti-36f4a47b619a49bda4c1870e7833b25b" target="_blank" rel="noopener">"Subaru WRX STI"</a> by
+        <a href="https://sketchfab.com/skyfaltus" target="_blank" rel="noopener">skyfaltus (Skyborg)</a>, licensed under
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Simplified for the web, with materials adjusted and lamps switched off.
+        The skies are real HDR photos from Poly Haven (CC0): "Camdeboo Road" by Dario Barresi and Jarod Guest for the evening, and
+        "Qwantani" mid-morning, noon and night by Greg Zaal and Jarod Guest. The ground textures are also from Poly Haven.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .sim-wrap {
+    padding-bottom: 6rem;
+  }
+  .sim {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .stage {
+    position: relative;
+    aspect-ratio: var(--ar);
+    width: min(100%, calc(82svh * (var(--ar))));
+    margin: 0 auto;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--line);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    container-type: size;
+  }
+  /* The photo's frame, as large as fits inside the stage */
+  .frame {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: min(100cqw, calc(100cqh * (var(--ar))));
+    aspect-ratio: var(--ar);
+    height: auto;
+  }
+  :global(.is-driving) .frame {
+    width: 100cqw;
+    height: 100cqh;
+    aspect-ratio: auto;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    outline: none;
+  }
+  :global(.is-dragging) canvas {
+    cursor: grabbing;
+  }
+  .vf {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  :global(.is-driving) .vf {
+    display: none;
+  }
+  /* Electronic level: a horizon line that turns green when the camera is level */
+  .level {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+  .level i {
+    width: 22%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.55);
+    transform: rotate(calc(-1 * var(--roll)));
+    transition: background 0.15s;
+  }
+  :global(.is-level) .level i {
+    background: #6ee07a;
+  }
+  .grid {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.14) 33.33%, transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255, 255, 255, 0.14) 66.66%, transparent calc(66.66% + 0.5px)),
+      linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.14) 33.33%, transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255, 255, 255, 0.14) 66.66%, transparent calc(66.66% + 0.5px));
+  }
+  .af {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border: 2px solid #6ee07a;
+    border-radius: 3px;
+  }
+  .af:global(.bad) {
+    border-color: #ff5a4a;
+  }
+  .af:global(.locked) {
+    border-style: dashed;
+    border-color: #ffd36a;
+  }
+  .vf-rec {
+    position: absolute;
+    top: 0.8rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.85rem;
+    color: #ff6b5e;
+    text-shadow: 0 1px 4px #000;
+  }
+  .vf-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    gap: clamp(0.5rem, 2vw, 1.4rem);
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(0, 0, 0, 0.55);
+    color: #f1f1f1;
+    font-size: clamp(0.66rem, 1.4vw, 0.9rem);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .vf-boost {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.8rem;
+    font-size: 0.7rem;
+    color: #ffd36a;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+  .vf-boost[hidden] {
+    display: none;
+  }
+  .fl:global(.on) {
+    color: #ffd36a;
+  }
+  .meter {
+    --m: 0;
+    position: relative;
+    width: clamp(70px, 12vw, 120px);
+    height: 14px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.5) 1px, transparent 1px) 0 50% / 16.666% 6px repeat-x;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  .meter i {
+    position: absolute;
+    left: calc(50% + var(--m) * 50%);
+    bottom: -4px;
+    width: 3px;
+    height: 12px;
+    margin-left: -1.5px;
+    background: #ffd36a;
+  }
+  .meter b {
+    position: absolute;
+    top: -1.1em;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75em;
+    font-weight: 500;
+    opacity: 0.8;
+  }
+  .flash-fx {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .flash-fx:global(.go) {
+    animation: fl 0.25s ease-out;
+  }
+  @keyframes fl {
+    0% {
+      opacity: 0.85;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  .top-hud {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 4px #000;
+    pointer-events: none;
+  }
+  .prompt {
+    color: #ffd36a;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(11, 10, 14, 0.62);
+    padding: 1rem;
+    overflow: auto;
+  }
+  .overlay[hidden] {
+    display: none;
+  }
+  .card .btn {
+    margin: 0.75rem 0 1rem;
+  }
+  .card {
+    background: rgba(19, 17, 24, 0.95);
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    max-width: 640px;
+    width: 100%;
+    text-align: center;
+  }
+  .kicker {
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    margin-bottom: 0.25rem;
+  }
+  .status {
+    color: var(--gold);
+    font-size: 0.9rem;
+  }
+  .keys {
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--text-2);
+    margin: 0 0 1.25rem;
+  }
+  .keys p {
+    margin: 0 0 0.35rem;
+  }
+  .keys b {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .mob {
+    display: none;
+  }
+  :global(.is-touch) .mob {
+    display: block;
+  }
+  :global(.is-touch) .desk {
+    display: none;
+  }
+
+  /* Touch controls */
+  .touch {
+    display: none;
+  }
+  :global(.is-touch) .touch {
+    display: block;
+  }
+  .joy {
+    position: absolute;
+    left: 4%;
+    bottom: 14%;
+    width: clamp(72px, 22vw, 96px);
+    height: clamp(72px, 22vw, 96px);
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+  }
+  .tbtns {
+    position: absolute;
+    right: 1.5%;
+    top: 3.2rem;
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 4px;
+  }
+  .tbtns button {
+    font: inherit;
+    font-size: 0.62rem;
+    padding: 0.3rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    min-width: 52px;
+  }
+  .tbtns .drv,
+  :global(.is-driving) .tbtns .walk {
+    display: none;
+  }
+  :global(.is-driving) .tbtns .drv {
+    display: block;
+  }
+  :global(.is-driving) .shutter-btn {
+    display: none;
+  }
+  .brake-btn {
+    display: none;
+    position: absolute;
+    right: 4%;
+    bottom: 16%;
+    width: clamp(56px, 15vw, 72px);
+    height: clamp(56px, 15vw, 72px);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 120, 100, 0.85);
+    background: rgba(120, 20, 10, 0.35);
+    color: #fff;
+    font: inherit;
+    font-size: 0.7rem;
+  }
+  :global(.is-driving) .brake-btn {
+    display: block;
+  }
+  .shutter-btn {
+    position: absolute;
+    right: 4%;
+    bottom: 16%;
+    width: clamp(48px, 13vw, 64px);
+    height: clamp(48px, 13vw, 64px);
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  /* Panel */
+  /* Stage tools: settings (full screen only), full screen, minimise */
+  .tools {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 6;
+    display: flex;
+    gap: 0.4rem;
+  }
+  .tool {
+    font: inherit;
+    font-size: 0.8rem;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    cursor: pointer;
+  }
+  .settings-btn,
+  .exit-btn {
+    display: none;
+  }
+  :global(.is-full) .settings-btn,
+  :global(.is-full) .exit-btn {
+    display: block;
+  }
+  :global(.is-full) .full-btn {
+    display: none;
+  }
+  :global(.panel-open) .settings-btn {
+    background: var(--gold);
+    color: var(--gold-ink);
+    border-color: var(--gold);
+  }
+  .top-hud {
+    right: 9rem !important;
+  }
+  .chip {
+    position: absolute;
+    left: 0.6rem;
+    top: 2.2rem;
+    z-index: 5;
+    width: clamp(52px, 9cqw, 84px);
+    padding: 3px;
+    border: 0;
+    border-radius: 4px;
+    background: #f6f3ee;
+    box-shadow: 0 6px 18px -6px #000;
+    cursor: zoom-in;
+  }
+  .chip[hidden] {
+    display: none;
+  }
+  .chip img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .chip:global(.pop) {
+    animation: pop 0.35s var(--ease);
+  }
+  @keyframes pop {
+    from {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+  .frame-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    justify-content: center;
+    align-items: center;
+  }
+  .pill {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .pill[aria-pressed="true"] {
+    background: var(--text);
+    color: var(--ink);
+  }
+  .pill.balance {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .dial.tilt b {
+    min-width: 3em;
+  }
+  .dial .level-btn {
+    width: auto;
+    padding: 0 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  /* Full screen: the game fills the screen; on phones the page underneath can't scroll. */
+  :global(html.sim-full),
+  :global(html.sim-full body) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .sim:global(.is-full) {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    max-width: none;
+    margin: 0;
+    background: #000;
+    height: 100dvh;
+  }
+  .sim:global(.is-full) .stage {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .sim:global(.is-full) .panel {
+    position: absolute;
+    left: 50%;
+    bottom: max(0.6rem, env(safe-area-inset-bottom));
+    translate: -50% 0;
+    z-index: 7;
+    width: min(760px, calc(100vw - 1.2rem));
+    max-height: 58dvh;
+    overflow: auto;
+    margin: 0;
+    padding: 0.8rem;
+    border-radius: 14px;
+    background: rgba(14, 13, 18, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    display: none;
+  }
+  .sim:global(.is-full.panel-open) .panel {
+    display: grid;
+  }
+  /* Thumbs at the very bottom, clear of the viewfinder readout */
+  .sim:global(.is-full) .joy {
+    bottom: max(1.2rem, calc(env(safe-area-inset-bottom) + 0.6rem));
+  }
+  .sim:global(.is-full) .shutter-btn,
+  .sim:global(.is-full) .brake-btn {
+    bottom: max(1.4rem, calc(env(safe-area-inset-bottom) + 0.8rem));
+  }
+  .panel {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .scene-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    justify-content: center;
+    align-items: center;
+  }
+  .times {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .times button,
+  .lights-toggle {
+    font: inherit;
+    font-size: 0.85rem;
+    background: transparent;
+    color: var(--text-2);
+    border: 0;
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+  }
+  .times button[aria-pressed="true"] {
+    background: var(--text);
+    color: var(--ink);
+  }
+  .times button[aria-busy="true"] {
+    animation: pulse 0.9s ease-in-out infinite alternate;
+  }
+  @keyframes pulse {
+    to {
+      opacity: 0.45;
+    }
+  }
+  :global(.is-changing) canvas {
+    filter: brightness(0.7);
+    transition: filter 0.3s;
+  }
+  .lights-toggle {
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+  }
+  .lights-toggle[aria-pressed="true"] {
+    background: #ffd36a;
+    color: #2a1a08;
+    border-color: #ffd36a;
+  }
+  .lenses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+  }
+  .lenses button,
+  .dial button {
+    font: inherit;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .lenses button {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.88rem;
+  }
+  .lenses span {
+    font-size: 0.7rem;
+    color: var(--text-3);
+    margin-left: 0.35rem;
+  }
+  .lenses button[aria-pressed="true"] {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--gold-ink);
+  }
+  .lenses button[aria-pressed="true"] span {
+    color: var(--gold-ink);
+  }
+  .dials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    justify-content: center;
+  }
+  .dial {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .dial .lbl {
+    font-size: 0.75rem;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .dial button {
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+  }
+  .dial b {
+    min-width: 4.2em;
+    text-align: center;
+    font-weight: 600;
+  }
+  .dial .flash-toggle {
+    width: auto;
+    padding: 0 0.8rem;
+    font-size: 0.85rem;
+  }
+  .flash-toggle[aria-pressed="true"] {
+    background: #ffd36a;
+    color: #2a1a08;
+    border-color: #ffd36a;
+  }
+  .develop {
+    position: absolute;
+    left: 50%;
+    top: 3rem;
+    translate: -50% 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.6);
+    font-size: 0.8rem;
+    color: #fff;
+  }
+  .develop[hidden] {
+    display: none;
+  }
+  .bar {
+    width: 120px;
+    height: 3px;
+    background: var(--line);
+  }
+  .bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--gold);
+  }
+  .how {
+    margin-top: 4rem;
+  }
+  @media (max-width: 640px) {
+    .vf-bar span:nth-child(7) {
+      display: none;
+    }
+  }
+</style>
+
+<!-- Gallery, viewer and export dialog. Global because the cards are built in script. -->
+<style is:global>
+  .gallery {
+    max-width: 1200px;
+    margin: 3rem auto 0;
+    --paper: #fbfaf7;
+    --paper-ink: #16141a;
+    --paper-muted: #6b6670;
+  }
+  .g-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .g-head h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    margin: 0;
+  }
+  .g-sub,
+  .g-note {
+    margin: 0.25rem 0 0;
+    color: var(--text-3);
+    font-size: 0.88rem;
+  }
+  .g-note:empty {
+    display: none;
+  }
+  .g-note {
+    color: #ffb36a;
+  }
+  .g-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    margin: 1.1rem 0 0.9rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: var(--text-2);
+  }
+  .gallery:not(.has-photos) .g-bar {
+    display: none;
+  }
+  .g-bar label {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    cursor: pointer;
+  }
+  .g-bar input {
+    accent-color: var(--gold);
+    width: 1rem;
+    height: 1rem;
+  }
+  .g-frame {
+    margin-left: auto;
+  }
+  .g-selcount {
+    color: var(--text);
+    min-width: 5.5em;
+  }
+  .g-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .g-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .g-btn.danger:not(:disabled):hover {
+    border-color: #ff7a6a;
+    color: #ff9a8a;
+  }
+  .g-empty {
+    margin: 1.25rem 0 0;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--text-3);
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+  }
+  .g-empty[hidden] {
+    display: none;
+  }
+  .g-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+    gap: 1rem;
+  }
+  .g-item {
+    position: relative;
+  }
+  /* Each photo is a print: white mat, settings printed under the image. */
+  .print {
+    margin: 0;
+    background: var(--paper);
+    padding: 5% 5% 0;
+    border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .g-open {
+    all: unset;
+    display: block;
+    cursor: zoom-in;
+    width: 100%;
+  }
+  .g-open:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .print img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    object-fit: contain; /* portrait frames sit on the white mat */
+    background: var(--paper);
+  }
+  .print figcaption,
+  .lb-print figcaption {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.6rem 0 0.75rem;
+    color: var(--paper-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .print .set,
+  .lb-print .set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.7em;
+    font-weight: 600;
+    font-size: 0.86rem;
+    letter-spacing: 0.01em;
+  }
+  .print .sub,
+  .lb-print .sub {
+    font-size: 0.72rem;
+    color: var(--paper-muted);
+  }
+  .g-item.sel .print {
+    box-shadow: 0 0 0 3px var(--gold), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    transform: scale(0.97);
+  }
+  .g-check {
+    position: absolute;
+    top: 0.45rem;
+    left: 0.45rem;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+  }
+  .g-check input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .g-check span {
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+  .g-check input:checked + span {
+    background: var(--gold) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23161208' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 70% no-repeat;
+    border-color: var(--gold);
+  }
+  .g-check input:focus-visible + span {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+  .g-acts {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    display: flex;
+    gap: 0.3rem;
+  }
+  .g-acts button {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(12, 11, 15, 0.7);
+    color: #fff;
+    cursor: pointer;
+  }
+  .g-acts button:hover {
+    background: rgba(12, 11, 15, 0.92);
+  }
+  .g-acts svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  /* On a mouse, show the controls on hover; on touch, always. */
+  @media (hover: hover) {
+    .g-check,
+    .g-acts {
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .g-item:hover .g-check,
+    .g-item:hover .g-acts,
+    .g-item:focus-within .g-check,
+    .g-item:focus-within .g-acts,
+    .selecting .g-check {
+      opacity: 1;
+    }
+  }
+
+  /* Viewer */
+  .lb {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: #08070a;
+    color: #eee;
+    overflow: hidden;
+  }
+  .lb[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  .lb::backdrop {
+    background: #000;
+  }
+  .lb-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: max(0.5rem, env(safe-area-inset-top)) 0.75rem 0.5rem;
+    font-size: 0.85rem;
+    flex: none;
+  }
+  .lb-count {
+    font-variant-numeric: tabular-nums;
+    color: #aaa;
+  }
+  .lb-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+  }
+  .lb-tools button {
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: #eee;
+    cursor: pointer;
+  }
+  .lb-tools button[aria-pressed="true"] {
+    background: #eee;
+    color: #111;
+  }
+  .lb-tools [hidden] {
+    display: none;
+  }
+  .lb-tools .lb-x {
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.2rem 0.7rem;
+  }
+  .lb-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  .lb-stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 3.5rem 1rem;
+    touch-action: pan-y;
+  }
+  .lb-print {
+    margin: 0;
+    background: var(--paper);
+    padding: clamp(8px, 1.6vw, 18px) clamp(8px, 1.6vw, 18px) 0;
+    border-radius: 2px;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px -20px #000;
+  }
+  .lb-print img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100dvh - 9.5rem);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    min-height: 0;
+  }
+  .lb-print figcaption {
+    padding: 0.55rem 0 0.7rem;
+  }
+  .lb-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .lb-nav:disabled {
+    opacity: 0.2;
+    cursor: default;
+  }
+  .lb-nav.prev {
+    left: 0.4rem;
+  }
+  .lb-nav.next {
+    right: 0.4rem;
+  }
+  .lb-info {
+    display: none;
+    width: min(320px, 40vw);
+    flex: none;
+    padding: 0.5rem 1rem 1rem;
+    overflow: auto;
+    font-size: 0.85rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .lb.show-info .lb-info {
+    display: block;
+  }
+  .lb-info canvas {
+    width: 100%;
+    max-width: 256px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  .lb-info .clip {
+    color: #ff8a7a;
+    margin: 0.4rem 0;
+  }
+  .lb-info dl {
+    margin: 0.5rem 0 0;
+    display: grid;
+    gap: 0.15rem;
+  }
+  .lb-info dt {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8a8590;
+    margin-top: 0.55rem;
+  }
+  .lb-info dd {
+    margin: 0;
+    color: #ddd;
+  }
+  @media (max-width: 720px) {
+    .lb-body {
+      flex-direction: column;
+    }
+    .lb-stage {
+      padding: 0 0.5rem 0.5rem;
+    }
+    .lb-nav {
+      top: auto;
+      bottom: 0.6rem;
+      transform: none;
+      width: 40px;
+      height: 40px;
+      font-size: 1.5rem;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .lb-info {
+      width: auto;
+      max-height: 40dvh;
+      border-left: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .lb-print img {
+      max-height: calc(100dvh - 11rem);
+    }
+    .lb.show-info .lb-print img {
+      max-height: calc(60dvh - 9rem);
+    }
+  }
+
+  /* Export dialog */
+  .ex {
+    width: min(560px, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: var(--ink-2);
+    color: var(--text);
+  }
+  .ex::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  .ex form {
+    display: grid;
+    gap: 0.85rem;
+    padding: clamp(1rem, 4vw, 1.6rem);
+  }
+  .ex h2 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    margin: 0;
+  }
+  .ex-sub {
+    margin: -0.3rem 0 0.2rem;
+    color: var(--text-3);
+    font-size: 0.88rem;
+  }
+  .ex label {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.82rem;
+    color: var(--text-2);
+  }
+  .ex input:not([type="radio"]),
+  .ex textarea {
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    resize: vertical;
+  }
+  .ex input:focus,
+  .ex textarea:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 0;
+    border-color: transparent;
+  }
+  .ex fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+  }
+  .ex legend {
+    font-size: 0.82rem;
+    color: var(--text-2);
+    margin-bottom: 0.35rem;
+    width: 100%;
+  }
+  .ex .radio {
+    display: inline-flex;
+    gap: 0.45rem;
+    align-items: center;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .ex .radio input {
+    accent-color: var(--gold);
+  }
+  .ex .radio:has(input:disabled) {
+    opacity: 0.45;
+  }
+  .ex-status {
+    margin: 0;
+    min-height: 1.2em;
+    font-size: 0.88rem;
+    color: var(--gold);
+  }
+  .ex-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    max-width: calc(100vw - 2rem);
+    padding: 0.65rem 0.75rem 0.65rem 1rem;
+    border-radius: 10px;
+    background: #f1ede6;
+    color: #16141a;
+    font-size: 0.9rem;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  }
+  .toast[hidden] {
+    display: none;
+  }
+  .toast button {
+    font: inherit;
+    font-weight: 600;
+    border: 0;
+    background: transparent;
+    color: #8a5a10;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+  }
+  .toast button[hidden] {
+    display: none;
+  }
+</style>
+
+<script>
+  import { mountSim } from "../scripts/sim/index";
+  const root = document.querySelector<HTMLElement>("[data-sim]");
+  const galleryRoot = document.querySelector<HTMLElement>("[data-gallery]");
+  if (root && galleryRoot) {
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      io.disconnect();
+      removeEventListener("scroll", check);
+      mountSim(root, galleryRoot).catch((err) => {
+        const s = root.querySelector("[data-status]");
+        if (s) s.textContent = `The simulator couldn't start: ${err?.message ?? err}`;
+        console.error(err);
+      });
+    };
+    // Only load the 3D engine once the simulator is near the screen.
+    const check = () => {
+      if (root.getBoundingClientRect().top < innerHeight + 400) start();
+    };
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && start(), { rootMargin: "400px" });
+    io.observe(root);
+    addEventListener("scroll", check, { passive: true });
+    check();
+  }
+</script>

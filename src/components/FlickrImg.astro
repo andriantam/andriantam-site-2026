@@ -1,0 +1,26 @@
+---
+// A Flickr photo served straight from Flickr's CDN with a responsive srcset.
+import type { FlickrPhoto } from "../lib/flickr";
+import { photoSrcset, photoUrl } from "../lib/flickr";
+
+interface Props {
+  photo: FlickrPhoto;
+  alt: string;
+  sizes?: string;
+  class?: string;
+  eager?: boolean;
+}
+const { photo, alt, sizes = "(min-width: 900px) 33vw, 100vw", class: cls, eager = false } = Astro.props;
+---
+
+<img
+  src={photoUrl(photo, 800)}
+  srcset={photoSrcset(photo)}
+  sizes={sizes}
+  width={photo.width}
+  height={photo.height}
+  alt={alt}
+  class={cls}
+  loading={eager ? "eager" : "lazy"}
+  decoding="async"
+/>

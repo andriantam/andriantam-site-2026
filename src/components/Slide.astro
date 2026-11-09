@@ -1,0 +1,113 @@
+---
+// A full-screen home page slide with a photographic background.
+// The photo settles from a slight zoom as the slide scrolls in (CSS scroll-driven animation).
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  id: string;
+  index: number;
+  total: number;
+  label: string;
+  image?: ImageMetadata;
+  imageAlt?: string;
+  position?: string; // object-position for the photo
+  dim?: number; // 0..1 darkness of the overlay
+  tall?: boolean; // content may exceed one screen
+}
+const { id, index, total, label, image, imageAlt = "", position = "center", dim = 0.62, tall = false } = Astro.props;
+const n = (v: number) => String(v).padStart(2, "0");
+---
+
+<section id={id} class:list={["slide", { tall }]} aria-labelledby={`${id}-title`} style={`--dim:${dim}`}>
+  {
+    image && (
+      <div class="bg grain" aria-hidden={imageAlt ? undefined : "true"}>
+        <Image
+          src={image}
+          alt={imageAlt}
+          widths={[640, 960, 1440, 1920, 2560]}
+          sizes="100vw"
+          class="reveal-zoom"
+          style={`object-position:${position}`}
+          loading="lazy"
+          decoding="async"
+          format="avif"
+        />
+      </div>
+    )
+  }
+  <div class="counter wrap" aria-hidden="true">
+    <span>{n(index)}</span><span class="line"></span><span>{n(total)}</span><span class="lbl">{label}</span>
+  </div>
+  <div class="content wrap">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .slide {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(6rem, 12vh, 9rem) 0 clamp(4rem, 10vh, 7rem);
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--ink);
+  }
+  .bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .bg :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+      linear-gradient(to bottom, var(--ink) 0%, rgba(11, 10, 14, 0) 22%, rgba(11, 10, 14, 0) 78%, var(--ink) 100%),
+      rgba(11, 10, 14, var(--dim));
+  }
+  .counter {
+    position: absolute;
+    top: clamp(5.5rem, 10vh, 7rem);
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .counter .line {
+    width: 40px;
+    height: 1px;
+    background: var(--line-strong);
+  }
+  .counter .lbl {
+    margin-left: 0.75rem;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .content {
+    position: relative;
+    z-index: 2;
+  }
+  .tall {
+    justify-content: flex-start;
+  }
+  .tall .content {
+    margin-top: 2.5rem;
+  }
+</style>

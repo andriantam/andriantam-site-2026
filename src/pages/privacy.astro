@@ -1,0 +1,58 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/PageHero.astro";
+import { SITE, ANALYTICS } from "../config/site";
+const updated = "9 November 2026";
+---
+
+<Base title="Privacy policy" description="How andriantam.com handles your data: cookieless analytics, and Google AdSense on article pages only.">
+  <PageHero eyebrow="Privacy" title="Privacy policy" intro={`Last updated ${updated}.`} compact />
+  <section class="wrap prose">
+    <p>
+      This site belongs to {SITE.name}. His business is {SITE.business.name} ({SITE.business.registration}), registered in
+      Malaysia. It is a static website: there are no accounts, no forms and no sign-ins.
+    </p>
+
+    <h2>What is collected</h2>
+    <ul>
+      <li>
+        <strong>Analytics{ANALYTICS.cloudflareToken ? "" : " (if enabled)"}.</strong> Cloudflare Web Analytics counts page views
+        without cookies and without tracking you across sites. No personal data is stored.
+      </li>
+      <li>
+        <strong>Advertising on article pages.</strong> Article pages show Google AdSense ads. Google may use cookies to show and
+        measure ads, and may personalise them if you consent. Visitors in the European Economic Area, the UK and Switzerland are
+        asked for consent first through Google's consent message. You can manage ad personalisation at
+        <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>. Read
+        <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">how Google uses data from partner sites</a>.
+      </li>
+      <li>
+        <strong>Embedded content.</strong> Photos load from Flickr and article images from Blogger (Google). YouTube videos only
+        load after you press play, using YouTube's privacy-enhanced mode.
+      </li>
+      <li>
+        <strong>The simulator.</strong> Photos you take in the Photographer Simulator are rendered in your browser and stay on
+        your device unless you download them.
+      </li>
+    </ul>
+
+    <h2>When you contact me</h2>
+    <p>
+      If you email or message me on WhatsApp, I use your details only to reply and to arrange the job you asked about. I don't
+      sell or share them.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Under Malaysia's Personal Data Protection Act 2010 and similar laws, you can ask what I hold about you, and ask me to
+      correct or delete it. Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+    </p>
+
+    <h2>Photos</h2>
+    <p>
+      All photos on this site are owned by Andrian Tam. If you appear in a photo and would like it removed, email me and I'll
+      take it down.
+    </p>
+  </section>
+  <div style="height:6rem"></div>
+</Base>

@@ -1,0 +1,169 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import FlickrImg from "../../components/FlickrImg.astro";
+import { getAlbums, photoUrl, photoSrcset, CATEGORY_LABELS, type Album } from "../../lib/flickr";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+
+export async function getStaticPaths() {
+  const albums = await getAlbums();
+  return albums
+    .filter((a) => a.slug !== "videography" && a.cover)
+    .map((album, _i, list) => ({
+      params: { slug: album.slug },
+      props: { album, related: list.filter((o) => o !== album && o.categories.some((c) => album.categories.includes(c))).slice(0, 3) },
+    }));
+}
+
+const { album, related } = Astro.props as { album: Album; related: Album[] };
+const cats = album.categories.map((c) => CATEGORY_LABELS[c] ?? c);
+const when = album.taken ? new Date(album.taken.replace(" ", "T")) : null;
+const whenText = when ? when.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
+const intro = `${album.count} photos${whenText ? ` from ${whenText}` : ""}. ${cats.join(" and ")} photography by Andrian Tam.`;
+const altFor = (title: string, i: number) =>
+  title && title !== album.title ? `${title}, ${album.title}` : `${album.title}, photo ${i + 1} of ${album.count}`;
+
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Portfolio", path: "/portfolio" },
+    { name: album.title, path: `/portfolio/${album.slug}` },
+  ]),
+  {
+    "@type": "ImageGallery",
+    name: album.title,
+    url: abs(`/portfolio/${album.slug}`),
+    description: intro,
+    genre: cats,
+    author: { "@id": PERSON_ID },
+    ...(album.taken ? { dateCreated: album.taken.split(" ")[0] } : {}),
+    image: album.photos.slice(0, 30).map((p, i) => ({
+      "@type": "ImageObject",
+      contentUrl: photoUrl(p, 1024),
+      caption: altFor(p.title, i),
+      creator: { "@id": PERSON_ID },
+      copyrightNotice: "© Andrian Tam",
+      creditText: "Andrian Tam",
+    })),
+  },
+];
+---
+
+<Base
+  title={`${album.title} photos`}
+  description={`${intro} View the gallery.`}
+  image={album.cover ? photoUrl(album.cover, 1024) : undefined}
+  imageAlt={album.title}
+  schema={schema}
+>
+  <PageHero
+    remoteImage={album.cover ? { src: photoUrl(album.cover, 1024), srcset: photoSrcset(album.cover) } : undefined}
+    eyebrow={cats.join(" · ")}
+    title={album.title}
+    intro={intro}
+    compact
+    crumbs={[{ name: "Home", path: "/" }, { name: "Portfolio", path: "/portfolio" }, { name: album.title, path: `/portfolio/${album.slug}` }]}
+  />
+
+  <section class="wrap gallery-wrap">
+    <ul class="gallery">
+      {
+        album.photos.map((p, i) => (
+          <li class="reveal">
+            <a href={p.pageUrl} target="_blank" rel="noopener" aria-label={`Open ${altFor(p.title, i)} on Flickr`}>
+              <FlickrImg photo={p} alt={altFor(p.title, i)} sizes="(min-width: 1100px) 400px, (min-width: 700px) 50vw, 100vw" eager={i < 2} />
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="note">A selection from the shoot. Full sets are delivered to clients in high resolution.</p>
+
+    <div class="cta">
+      <h2>Planning something similar?</h2>
+      <p class="lede">Tell me the date, the place and what you need.</p>
+      <a class="btn btn-primary" href="/photography">More about my photography</a>
+    </div>
+
+    {
+      related.length > 0 && (
+        <aside class="related">
+          <h2>More {cats[0]?.toLowerCase()} work</h2>
+          <ul>
+            {related.map((r) => (
+              <li>
+                <a href={`/portfolio/${r.slug}`}>
+                  {r.cover && <FlickrImg photo={r.cover} alt="" sizes="(min-width: 900px) 33vw, 100vw" />}
+                  <span>{r.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )
+    }
+  </section>
+</Base>
+
+<style>
+  .gallery-wrap {
+    padding-bottom: 6rem;
+  }
+  .gallery {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 3 320px;
+    column-gap: 1rem;
+  }
+  .gallery li {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  .gallery :global(img) {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+    background: var(--ink-2);
+  }
+  .note {
+    color: var(--text-3);
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 1rem;
+  }
+  .cta {
+    text-align: center;
+    padding: 5rem 0 3rem;
+  }
+  .cta .lede {
+    margin-inline: auto;
+  }
+  .related h2 {
+    font-size: 1.6rem;
+  }
+  .related ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 1rem;
+  }
+  .related a {
+    display: grid;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+  .related :global(img) {
+    aspect-ratio: 3 / 2;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: var(--radius);
+  }
+  .related span {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+  }
+</style>

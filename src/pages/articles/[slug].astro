@@ -1,0 +1,140 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import AdSlot from "../../components/AdSlot.astro";
+import { getArticles, sizedBloggerImage, type Article } from "../../lib/blogger";
+import { ADS } from "../../config/site";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+
+export async function getStaticPaths() {
+  const articles = await getArticles();
+  return articles.map((article, i) => ({
+    params: { slug: article.slug },
+    props: { article, newer: articles[i - 1] ?? null, older: articles[i + 1] ?? null },
+  }));
+}
+
+const { article, newer, older } = Astro.props as { article: Article; newer: Article | null; older: Article | null };
+const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+const minutes = Math.max(1, Math.round(article.wordCount / 220));
+
+// Insert the in-article ad after the second paragraph.
+const parts = article.html.split(/(?<=<\/p>)/i);
+const splitAt = parts.length > 4 ? 2 : parts.length;
+const before = parts.slice(0, splitAt).join("");
+const after = parts.slice(splitAt).join("");
+
+const url = `/articles/${article.slug}`;
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Articles", path: "/articles" },
+    { name: article.title, path: url },
+  ]),
+  {
+    "@type": "BlogPosting",
+    "@id": abs(url) + "#article",
+    headline: article.title,
+    description: article.excerpt,
+    url: abs(url),
+    mainEntityOfPage: abs(url),
+    datePublished: article.published,
+    dateModified: article.updated,
+    author: { "@id": PERSON_ID, "@type": "Person", name: "Andrian Tam", url: abs("/resume") },
+    publisher: { "@id": PERSON_ID },
+    ...(article.image ? { image: sizedBloggerImage(article.image, 1600) } : {}),
+    wordCount: article.wordCount,
+    keywords: article.labels.join(", ") || undefined,
+    inLanguage: "en",
+  },
+];
+---
+
+<Base
+  title={article.title}
+  description={article.excerpt}
+  image={article.image ? sizedBloggerImage(article.image, 1200) : undefined}
+  imageAlt={article.title}
+  type="article"
+  published={article.published}
+  modified={article.updated}
+  schema={schema}
+  ads
+>
+  <PageHero
+    remoteImage={article.image ? { src: sizedBloggerImage(article.image, 1600), srcset: `${sizedBloggerImage(article.image, 800)} 800w, ${sizedBloggerImage(article.image, 1600)} 1600w, ${sizedBloggerImage(article.image, 2400)} 2400w` } : undefined}
+    eyebrow="Article"
+    title={article.title}
+    compact
+    crumbs={[{ name: "Home", path: "/" }, { name: "Articles", path: "/articles" }, { name: article.title, path: url }]}
+  >
+    <p class="byline">
+      By <a href="/resume">Andrian Tam</a> · <time datetime={article.published}>{fmt(article.published)}</time> · {minutes} min read
+    </p>
+  </PageHero>
+
+  <article class="wrap">
+    <div class="prose">
+      <Fragment set:html={before} />
+      <AdSlot slot={ADS.inArticleSlot} />
+      <Fragment set:html={after} />
+      <AdSlot slot={ADS.endOfArticleSlot} />
+
+      <p class="updated">
+        Last updated <time datetime={article.updated}>{fmt(article.updated)}</time>.
+      </p>
+    </div>
+
+    <nav class="pager" aria-label="More articles">
+      {newer ? <a href={`/articles/${newer.slug}`} class="newer"><span>Newer</span>{newer.title}</a> : <span />}
+      {older && <a href={`/articles/${older.slug}`} class="older"><span>Older</span>{older.title}</a>}
+    </nav>
+  </article>
+</Base>
+
+<style>
+  .byline {
+    color: var(--text-2);
+    font-size: 0.92rem;
+  }
+  article {
+    padding-bottom: 6rem;
+  }
+  .updated {
+    color: var(--text-3);
+    font-size: 0.88rem;
+    margin-top: 3rem;
+  }
+  .pager {
+    max-width: 720px;
+    margin: 4rem auto 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .pager a {
+    display: grid;
+    gap: 0.3rem;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+  .pager span {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .older {
+    text-align: right;
+  }
+  @media (max-width: 640px) {
+    .pager {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

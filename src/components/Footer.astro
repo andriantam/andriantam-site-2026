@@ -1,0 +1,97 @@
+---
+import { SITE } from "../config/site";
+const year = new Date().getFullYear();
+const social = [
+  { href: SITE.social.instagram, label: "Instagram" },
+  { href: SITE.social.youtube, label: "YouTube" },
+  { href: SITE.social.linkedin, label: "LinkedIn" },
+  { href: SITE.social.flickr, label: "Flickr" },
+  { href: SITE.social.twitch, label: "Twitch" },
+];
+---
+
+<footer class="site-footer">
+  <div class="wrap grid">
+    <div>
+      <p class="tag">{SITE.tagline}</p>
+      <p class="small">
+        Head of Brand, software engineer and photographer, based in {SITE.location.city}.
+      </p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="/photography">Photography</a></li>
+        <li><a href="/portfolio">Portfolio</a></li>
+        <li><a href="/articles">Articles</a></li>
+        <li><a href="/resume">Resume</a></li>
+        <li><a href="/play">Play</a></li>
+        <li><a href="/privacy">Privacy</a></li>
+      </ul>
+      <ul>
+        {social.map((s) => <li><a href={s.href} rel="me noopener" target="_blank">{s.label}</a></li>)}
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap legal">
+    <p>© {year} Andrian Tam. All photos are owned by Andrian Tam.</p>
+    <p>Part of {SITE.business.name}, {SITE.business.registration}. Built with Astro.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--line);
+    padding: 4rem 0 2rem;
+    background: var(--ink);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 2rem;
+  }
+  .tag {
+    font-family: var(--font-display);
+    font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+    line-height: 1.25;
+    max-width: 22ch;
+  }
+  .small {
+    color: var(--text-3);
+    font-size: 0.92rem;
+  }
+  nav {
+    display: flex;
+    gap: 3rem;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  nav a {
+    text-decoration: none;
+    color: var(--text-2);
+    font-size: 0.95rem;
+  }
+  .legal {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 2rem;
+    color: var(--text-3);
+    font-size: 0.82rem;
+  }
+  .legal p {
+    margin: 0;
+  }
+  @media (max-width: 720px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
