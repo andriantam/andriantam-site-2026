@@ -76,7 +76,7 @@ const SCATTER = [
         </div>
         <div class="copy wrap center">
           <p class="eyebrow">Photographer · Engineer · Brand builder</p>
-          <h1 id="st-intro" class="title">andriantam</h1>
+          <h1 id="st-intro" class="title"><img class="wordmark" src="/wordmark.png" alt="andriantam" width="2400" height="196" /></h1>
           <p class="lede">Fifteen years behind the camera, a decade of building software. Here's how the two came together.</p>
         </div>
         <p class="hint" aria-hidden="true"><span><span class="touch-only">Swipe up</span><span class="mouse-only">Scroll</span> for the story</span><i></i></p>
@@ -395,6 +395,13 @@ const SCATTER = [
   }
   .title {
     font-size: clamp(3rem, 11vw, 8rem);
+  }
+  /* The opening title is the andriantam wordmark */
+  .title .wordmark {
+    display: block;
+    width: min(78vw, 52rem);
+    height: auto;
+    margin: 0.4em auto 0.15em;
   }
   h2 em,
   .title em {

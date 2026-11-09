@@ -14,8 +14,7 @@ const active = (href: string) => (href === "/" ? path === "/" : path === href ||
 <header class="site-header">
   <div class="bar wrap">
     <a href="/" class="brand" aria-label="andriantam, home">
-      <span class="mark"><svg viewBox="33 18 473 473" aria-hidden="true"><path fill="currentColor" d="M33 61C70 84 150 96 269.5 96S469 84 506 61V136H33ZM191 136h37v312h-37ZM312 136h38v312h-38Z" /></svg></span>
-      <span class="name">andriantam</span>
+      <img class="wordmark" src="/wordmark.png" alt="andriantam" width="2400" height="196" />
     </a>
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav">Menu</button>
     <nav aria-label="Main" id="main-nav">
@@ -105,23 +104,13 @@ const active = (href: string) => (href === "/" ? path === "/" : path === href ||
     color: var(--text);
     flex-shrink: 0;
   }
-  .mark {
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--gold);
-    color: var(--gold);
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    font-family: var(--font-display);
+  .wordmark {
+    display: block;
+    height: 15px;
+    width: auto;
   }
-  .mark svg {
-    width: 60%;
-    height: 60%;
-  }
-  .name {
-    font-family: var(--font-display);
-    font-size: 1.1rem;
+  .brand:hover .wordmark {
+    opacity: 0.8;
   }
   nav ul {
     display: flex;
@@ -158,6 +147,9 @@ const active = (href: string) => (href === "/" ? path === "/" : path === href ||
   @media (max-width: 720px) {
     .bar {
       height: 60px;
+    }
+    .wordmark {
+      height: 13px;
     }
     .menu-btn {
       display: block;
