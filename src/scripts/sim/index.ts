@@ -9,6 +9,7 @@ import {
 } from "./data";
 import { type Box2, angleDiff, boxesOverlap, clamp, corners, distToBox, inBox, pushOut, toLocal } from "./geom";
 import { Gallery, type ShotMeta } from "./gallery";
+import { Sound } from "./sound";
 
 type Stance = "stand" | "crouch" | "prone";
 const EYE: Record<Stance, number> = { stand: 1.62, crouch: 1.02, prone: 0.3 };
@@ -41,6 +42,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const gallery = new Gallery(galleryRoot);
+  const sound = new Sound();
   const galleryReady = gallery.init();
   let time: TimeOfDay = "evening";
   LIGHT.ev = timePreset(time).ev;
@@ -195,7 +197,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     if (driving) return;
     if (player.onLadder) return stepOff();
     if (player.stance !== "stand") return (player.stance = "stand");
-    if (player.feet <= groundAt(player.x, player.z, player.feet) + 0.01 && !player.carrying) player.vy = 4.1;
+    if (player.feet <= groundAt(player.x, player.z, player.feet) + 0.01 && !player.carrying) (player.vy = 4.1), sound.footstep();
   };
   const climb = () => {
     if (driving) return;
@@ -209,6 +211,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     player.feet = l.top;
     player.vy = 0;
     if (player.stance === "prone") player.stance = "crouch";
+    sound.ladder();
   };
   function stepOff() {
     const l = player.onLadder!;
@@ -217,6 +220,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     player.x = l.box.cx + fx * (l.box.hz + 0.45);
     player.z = l.box.cz + fz * (l.box.hz + 0.45);
     player.feet = 0;
+    sound.land(1);
   }
   const carry = () => {
     if (driving || player.onLadder) return;
@@ -236,6 +240,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       l.group.position.z = clamp(l.group.position.z, world.bounds.minZ + 0.6, world.bounds.maxZ - 0.6);
       syncLadderBox(l);
       player.carrying = null;
+      sound.ladder(true);
       return;
     }
     const l = nearestLadder(1.4, true);
@@ -244,6 +249,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     l.carried = true;
     player.carrying = l;
     if (player.stance === "prone") player.stance = "stand";
+    sound.ladder();
   };
 
   // ---------- Driving ----------
@@ -266,6 +272,8 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     const [fx, fz] = car.forward();
     player.yaw = Math.atan2(-fx, -fz);
     player.pitch = -0.22;
+    sound.door();
+    sound.engine(true);
   }
   function exitCar() {
     if (!driving) return;
@@ -290,6 +298,8 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       driving = false;
       root.classList.remove("is-driving");
       player.pitch = -0.05;
+      sound.engine(false);
+      sound.door();
       return;
     }
   }
@@ -300,12 +310,14 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     for (const l of world.ladders) {
       if (l.carried || !boxesOverlap(world.carBox, ladderPhysics.footprint(l))) continue;
       if (ladderPhysics.hit(l, world.carBox, vx, vz)) {
+        clunk();
         if (player.onLadder === l) player.onLadder = null; // whoever was on it comes down with it
       }
     }
   }
   function toggleLights() {
     car.setLights(!car.lightsOn);
+    sound.relay();
     render.ui();
   }
 
@@ -315,7 +327,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   canvas.addEventListener("pointerdown", (e) => {
     if (!started || e.pointerType === "touch") return;
     canvas.focus({ preventScroll: true });
-    if (e.button === 2) return void (cam.afLocked = true);
+    if (e.button === 2) return void ((cam.afLocked = true), sound.focusBeep());
     if (e.button !== 0) return;
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
     canvas.setPointerCapture(e.pointerId);
@@ -374,8 +386,10 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     else if (k === "KeyX") tilt(1);
     else if (k === "KeyL") level();
     else if (k === "KeyB") balance();
+    else if (k === "Escape" && !preview.hidden) closePreview();
     else if (k === "Escape" && full && !document.fullscreenElement) exitFull();
     else if (k === "KeyF") toggleFlash();
+    else if (k === "KeyM") toggleSound();
     else if (k === "BracketLeft") step("aperture", -1);
     else if (k === "BracketRight") step("aperture", 1);
     else if (k === "Comma") step("shutter", -1);
@@ -408,7 +422,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     const looks = new Map<number, { x: number; y: number; t: number; moved: number }>();
     let twist: number | null = null;
     const padRect = () => pad.getBoundingClientRect();
-    const ignore = (t: Touch) => !started || !!(t.target as HTMLElement).closest("button, a, input, [data-overlay], [data-panel], [data-chip]");
+    const ignore = (t: Touch) => !started || !!(t.target as HTMLElement).closest("button, a, input, [data-overlay], [data-panel], [data-chip], [data-preview]");
     const twistAngle = () => {
       const [a, b] = [...looks.values()];
       return Math.atan2(b.y - a.y, b.x - a.x);
@@ -463,8 +477,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
         if (t.identifier === joyId) (joyId = null), (joy.x = joy.y = 0), (knob.style.transform = "");
         const l = looks.get(t.identifier);
         if (l) {
-          // A quick, still tap on the view is the shutter (not after a two-finger twist).
-          if (e.type === "touchend" && looks.size === 1 && twist === null && l.moved < 10 && performance.now() - l.t < 300 && !driving) shoot();
+          // Tapping the view doesn't shoot (too easy to do by accident): the Take photo button does.
           looks.delete(t.identifier);
           if (looks.size < 2) twist = looks.size ? twist : null;
           if (looks.size === 0) twist = null;
@@ -493,7 +506,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       prone: () => setStance("prone"),
       ladder: climb,
       carry,
-      af: () => (cam.afLocked = !cam.afLocked),
+      af: () => ((cam.afLocked = !cam.afLocked) && sound.focusBeep()),
     };
     $$("[data-touch-btn]").forEach((b) => {
       b.addEventListener("touchstart", (e) => {
@@ -509,6 +522,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
 
   // ---------- Controls panel ----------
   function setLens(i: number) {
+    if (cam.lens !== i) sound.tick();
     cam.lens = i;
     clampAperture();
     render.ui();
@@ -518,10 +532,12 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     if (what === "shutter") (cam.sh = clamp(cam.sh + d, 0, SHUTTERS.length - 1)), clampShutter();
     if (what === "iso") cam.iso = clamp(cam.iso + d, 0, ISOS.length - 1);
     if (what === "power") cam.power = clamp(cam.power + d, 0, FLASH_POWERS.length - 1);
+    sound.tick();
     render.ui();
   }
   function toggleFlash() {
     cam.flash = !cam.flash;
+    sound.tick();
     clampShutter();
     render.ui();
   }
@@ -537,11 +553,13 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     cam.portrait = !cam.portrait;
     root.classList.toggle("is-portrait", cam.portrait);
     root.style.setProperty("--ar", cam.portrait ? "2 / 3" : "3 / 2");
+    if (byUser) sound.tick();
     render.ui();
   }
   const TILT_STEP = (2 * Math.PI) / 180;
   function tilt(d: number) {
     cam.roll = clamp(cam.roll + d * TILT_STEP, -Math.PI / 2, Math.PI / 2);
+    sound.tick();
     render.ui();
   }
   function level() {
@@ -592,6 +610,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       time = t;
       LIGHT.ev = p.ev;
       LIGHT.time = t;
+      sound.setTime(t);
       calibrateScene();
       pendingBalance = true; // once the meter has read the new light
       lastMeter = 0;
@@ -652,12 +671,15 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
 
 
   function shoot() {
+    if (!preview.hidden) return closePreview();
     if (!started || exposing || developing() || driving || changingTime) return;
     autofocus();
     const t0 = performance.now();
     exposing = { t0, end: t0 + shutter() * 1000 };
+    sound.shutter();
     buzz(18);
     if (cam.flash) {
+      sound.flash();
       flashFx.classList.remove("go");
       void flashFx.offsetWidth;
       flashFx.classList.add("go");
@@ -671,7 +693,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     const setup = describeSetup();
     exposing = null;
     root.classList.remove("is-exposing");
-    if (shutter() >= 0.3) buzz(12);
+    if (shutter() >= 0.3) sound.shutter(true), buzz(12);
     const L = lens();
     const settings = {
       focal: L.focal,
@@ -728,7 +750,47 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     };
     await gallery.add(photo, meta, false);
     showChip();
+    showPreview();
   }
+
+  // After each shot: a preview of the photo with its settings. Tap Keep shooting (or anywhere on it) to carry on.
+  const preview = $("[data-preview]");
+  const previewImg = preview.querySelector("img")!;
+  let previewUrl = "";
+  function showPreview() {
+    const r = gallery.latest();
+    if (!r) return;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(r.blob);
+    previewImg.src = previewUrl;
+    const m = r.meta;
+    const ev = Math.round(m.meterEV * 10) / 10;
+    $("[data-preview-title]").textContent = `Shot ${m.n} · ${m.lens}`;
+    $("[data-preview-meta]").textContent = [
+      `${m.focal}mm`,
+      shutterLabel(m.shutter),
+      apertureLabel(m.aperture),
+      isoLabel(m.iso),
+      m.flash ? `Flash ${powerLabel(m.flash)}` : "No flash",
+      `Focus ${m.focusDist >= 999 ? "∞" : `${m.focusDist.toFixed(1)} m`}`,
+    ].join(" · ");
+    $("[data-preview-ev]").textContent =
+      Math.abs(ev) < 0.35 ? "Exposure: well balanced" : ev > 0 ? `Exposure: ${ev} stops bright` : `Exposure: ${-ev} stops dark`;
+    preview.hidden = false;
+    root.classList.add("previewing");
+    $<HTMLButtonElement>("[data-preview-close]").focus({ preventScroll: true });
+  }
+  function closePreview() {
+    if (preview.hidden) return;
+    preview.hidden = true;
+    root.classList.remove("previewing");
+    canvas.focus({ preventScroll: true });
+  }
+  $("[data-preview-close]").addEventListener("click", closePreview);
+  preview.addEventListener("click", (e) => {
+    if (e.target === preview) closePreview(); // tap outside the card
+  });
+  $("[data-preview-open]").addEventListener("click", () => (closePreview(), gallery.open(0)));
   // The latest shot sits in the corner of the view; tap it to review.
   const chip = $<HTMLButtonElement>("[data-chip]");
   let chipUrl = "";
@@ -771,6 +833,14 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   function buzz(ms: number) {
     if (typeof navigator.vibrate === "function") navigator.vibrate(ms);
     else haptic?.click();
+  }
+
+  // A clang when the car knocks a ladder over.
+  function clunk() {
+    const now = performance.now();
+    if (now - clunkAudio < 300) return;
+    clunkAudio = now;
+    sound.ladder(true);
   }
 
   // ---------- HUD ----------
@@ -825,6 +895,8 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
 
   // ---------- Main loop ----------
   let started = false;
+  let clunkAudio = 0;
+  let stride = 0;
   let last = performance.now();
   let lastMeter = 0;
   let eyeAdapt = 1;
@@ -854,6 +926,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       player.x = car.x;
       player.z = car.z;
       carHitsLadders();
+      sound.engineSpeed(Math.abs(car.v), Math.max(0, -mz));
     } else if (player.onLadder) {
       if (mag > 0.6) stepOff();
     } else if (mag > 0.05) {
@@ -862,8 +935,15 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       if (player.carrying) sp = Math.min(sp, 1.0);
       const k = (sp * dt) / Math.max(1, mag);
       const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+      const ox = player.x, oz = player.z;
       player.x += (mx * cy + mz * sy) * k;
       player.z += (-mx * sy + mz * cy) * k;
+      // Footsteps: one per stride while on the ground.
+      if (player.feet <= groundAt(player.x, player.z, player.feet) + 0.02) {
+        stride += Math.hypot(player.x - ox, player.z - oz);
+        const len = player.stance === "stand" ? (run ? 0.95 : 0.7) : player.stance === "crouch" ? 0.5 : 0.45;
+        if (stride > len) (stride = 0), sound.footstep(player.stance !== "stand");
+      }
     }
 
     // Collide (not while standing on a ladder or driving)
@@ -880,6 +960,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
       player.feet += player.vy * dt;
       const g = groundAt(player.x, player.z, player.feet);
       if (player.feet <= g) {
+        if (player.vy < -2.5) sound.land(-player.vy);
         player.feet = g;
         player.vy = 0;
       }
@@ -993,6 +1074,8 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   startBtn.textContent = "Start shooting";
   startBtn.addEventListener("click", () => {
     started = true;
+    sound.unlock();
+    syncSound();
     overlay.hidden = true;
     startBtn.textContent = "Back to the shoot";
     if (mobile) enterFull();
@@ -1021,6 +1104,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     if (mobile) {
       started = false; // tap "Back to the shoot" to carry on
       overlay.hidden = false;
+      syncSound();
     }
   }
   document.addEventListener("fullscreenchange", () => {
@@ -1029,6 +1113,24 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   $("[data-full]").addEventListener("click", () => (full ? exitFull() : enterFull()));
   $("[data-exit]").addEventListener("click", exitFull);
   $("[data-panel-toggle]").addEventListener("click", () => root.classList.toggle("panel-open"));
+
+  // ---------- Sound ----------
+  // Plays only while the game is started and on screen; the speaker button (or M) mutes it, remembered per browser.
+  const soundBtn = $<HTMLButtonElement>("[data-sound]");
+  let onScreen = true;
+  const syncSound = () => sound.setActive(started && (onScreen || full));
+  function toggleSound() {
+    const on = sound.toggle();
+    syncSound();
+    soundBtn.setAttribute("aria-pressed", String(on));
+    soundBtn.setAttribute("aria-label", on ? "Sound on. Turn sound off" : "Sound off. Turn sound on");
+    soundBtn.classList.toggle("off", !on);
+  }
+  soundBtn.setAttribute("aria-pressed", String(sound.enabled));
+  soundBtn.classList.toggle("off", !sound.enabled);
+  soundBtn.setAttribute("aria-label", sound.enabled ? "Sound on. Turn sound off" : "Sound off. Turn sound on");
+  soundBtn.addEventListener("click", toggleSound);
+  new IntersectionObserver(([e]) => ((onScreen = e.isIntersecting), syncSound()), { threshold: 0.3 }).observe(stage);
   schedule((t) => {
     last = t;
     frame(t);
@@ -1039,7 +1141,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     (window as unknown as Record<string, unknown>).__sim = {
       cam, player, shoot, setLens, step, toggleFlash, start: () => startBtn.click(), world, renderer, car, gallery,
       toggleOrientation, tilt, level, balance, enterFull, exitFull, ladders: world.ladders,
-      setTime, enterCar, exitCar, toggleLights, keys, camera,
+      setTime, enterCar, exitCar, toggleLights, keys, camera, sound, toggleSound,
       driving: () => driving,
       look: (dx: number, dy: number) => ((lookDX += dx), (lookDY += dy)),
       meter: () => meterEV,

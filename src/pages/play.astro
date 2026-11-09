@@ -73,9 +73,24 @@ const schema = [
         <!-- Tapped by script when the shutter fires: on iPhone (iOS 18+) toggling a switch gives a haptic tick. -->
         <label class="haptic" data-haptic aria-hidden="true"><input type="checkbox" switch tabindex="-1" /></label>
         <div class="tools">
+          <button type="button" class="tool sound-btn" data-sound aria-pressed="true" aria-label="Sound on. Turn sound off" title="Sound (M)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" /><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path class="mute" d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+          </button>
           <button type="button" class="tool settings-btn" data-panel-toggle aria-label="Camera settings">Settings</button>
           <button type="button" class="tool full-btn" data-full aria-label="Full screen">⛶</button>
           <button type="button" class="tool exit-btn" data-exit aria-label="Minimise the game and see your photos">✕</button>
+        </div>
+        <div class="preview" data-preview hidden role="dialog" aria-label="Photo preview">
+          <div class="preview-card">
+            <img alt="The photo you just took" />
+            <p class="preview-title" data-preview-title></p>
+            <p class="preview-meta" data-preview-meta></p>
+            <p class="preview-ev" data-preview-ev></p>
+            <div class="preview-actions">
+              <button type="button" class="btn btn-primary" data-preview-close>Keep shooting</button>
+              <button type="button" class="btn" data-preview-open>Open in gallery</button>
+            </div>
+          </div>
         </div>
         <button type="button" class="chip" data-chip hidden aria-label="Review your latest photo"><img alt="" /></button>
         <div class="develop" data-develop hidden><span>Developing</span><div class="bar"><i data-develop-bar></i></div></div>
@@ -94,7 +109,7 @@ const schema = [
             <button type="button" class="drv" data-touch-btn="lights">Lights</button>
           </div>
           <button type="button" class="brake-btn" data-touch-btn="brake">Brake</button>
-          <button type="button" class="shutter-btn" data-touch-btn="shutter" aria-label="Shutter"></button>
+          <button type="button" class="shutter-btn" data-touch-btn="shutter"><i aria-hidden="true"></i><span>Take photo</span></button>
         </div>
 
         <div class="overlay" data-overlay>
@@ -107,11 +122,11 @@ const schema = [
               <p><b>Move</b> W A S D, Shift to run · <b>Jump</b> Space · <b>Crouch</b> C · <b>Lie flat</b> Z</p>
               <p><b>Portrait or landscape</b> V · <b>Tilt</b> Q and X, L to level · <b>Balance exposure</b> B</p>
               <p><b>Ladder</b> E climb, R pick up or put down · <b>Car</b> E to get in, W S A D, Space brake, H lights</p>
-              <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T</p>
+              <p><b>Lens</b> 1 to 7 · <b>Shutter</b> scroll · <b>Aperture</b> Shift+scroll · <b>ISO</b> - = · <b>Flash</b> F · <b>Time</b> T · <b>Sound</b> M</p>
             </div>
             <div class="keys mob">
-              <p>Left thumb: walk. Drag anywhere else to look, twist two fingers to tilt, tap the view or the round button to shoot.</p>
-              <p>Settings has lenses, exposure and the frame. ✕ minimises the game so you can see your photos.</p>
+              <p>Left thumb: walk. Drag anywhere else to look, twist two fingers to tilt, tap Take photo to shoot.</p>
+              <p>Settings has lenses, exposure and the frame. The speaker turns sound on or off, and ✕ minimises the game so you can see your photos.</p>
             </div>
           </div>
         </div>
@@ -596,11 +611,93 @@ const schema = [
     position: absolute;
     right: 4%;
     bottom: 16%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+  .shutter-btn i {
     width: clamp(48px, 13vw, 64px);
     height: clamp(48px, 13vw, 64px);
     border-radius: 50%;
     border: 4px solid rgba(255, 255, 255, 0.85);
     background: rgba(255, 255, 255, 0.25);
+  }
+  .shutter-btn:active i {
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  /* Photo preview after each shot */
+  .preview {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.55);
+    animation: preview-in 0.25s var(--ease);
+  }
+  .preview[hidden] {
+    display: none;
+  }
+  @keyframes preview-in {
+    from {
+      opacity: 0;
+    }
+  }
+  .preview-card {
+    display: grid;
+    gap: 0.35rem;
+    justify-items: center;
+    max-width: min(92%, 560px);
+    max-height: 100%;
+    padding: 0.7rem 0.7rem 0.85rem;
+    border-radius: 12px;
+    background: #f6f3ee;
+    color: #1a1714;
+    text-align: center;
+    box-shadow: 0 20px 50px -15px #000;
+    overflow: auto;
+  }
+  .preview-card img {
+    display: block;
+    max-width: 100%;
+    max-height: 52cqh;
+    width: auto;
+    height: auto;
+    border-radius: 3px;
+  }
+  .preview-title {
+    margin: 0.3rem 0 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .preview-meta,
+  .preview-ev {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #4a443d;
+  }
+  .preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 0.35rem;
+  }
+  .preview-actions .btn:not(.btn-primary) {
+    background: transparent;
+    color: #1a1714;
+    border: 1px solid rgba(0, 0, 0, 0.3);
   }
 
   /* Panel */
@@ -624,6 +721,22 @@ const schema = [
     background: rgba(0, 0, 0, 0.45);
     color: #fff;
     cursor: pointer;
+  }
+  .sound-btn {
+    display: grid;
+    place-items: center;
+    padding: 0 0.5rem;
+  }
+  .sound-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  .sound-btn .mute,
+  .sound-btn:global(.off) .waves {
+    display: none;
+  }
+  .sound-btn:global(.off) .mute {
+    display: inline;
   }
   .haptic {
     position: absolute;
@@ -650,7 +763,7 @@ const schema = [
     border-color: var(--gold);
   }
   .top-hud {
-    right: 9rem !important;
+    right: 11.5rem !important;
   }
   .chip {
     position: absolute;
