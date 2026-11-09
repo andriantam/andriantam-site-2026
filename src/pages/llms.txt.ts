@@ -13,7 +13,7 @@ export const GET: APIRoute = async () => {
 
 > ${SITE.description}
 
-${SITE.name} (also known as ${SITE.handle}) is based in ${SITE.location.city}. Contact: ${SITE.email}.
+${SITE.name} (${SITE.person}) is based in ${SITE.location.city}. Contact: ${SITE.email}.
 
 ${SITE.name} no longer takes photography commissions. Photography is a personal passion again; he is happy to meet for a coffee to talk photography or share his experience.
 
@@ -39,7 +39,7 @@ ${FAQ.map((f) => `### ${f.q}\n${f.a}`).join("\n\n")}
 - [Videography](${u("/portfolio/videography")})
 - [Resume](${u("/resume")})
 - [Articles](${u("/articles")})
-- [Photographer Simulator](${u("/play")}): a 3D browser game with seven lenses and physically based exposure, depth of field and motion blur
+- [Photography Simulator](${u("/play")}): a free 3D photography simulator game in the browser with seven lenses and physically based exposure, depth of field and motion blur
 
 ## Portfolio albums
 

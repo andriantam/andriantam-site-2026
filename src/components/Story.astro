@@ -76,7 +76,7 @@ const SCATTER = [
         </div>
         <div class="copy wrap center">
           <p class="eyebrow">Photographer · Engineer · Brand builder</p>
-          <h1 id="st-intro" class="title">Andrian Tam</h1>
+          <h1 id="st-intro" class="title">andriantam</h1>
           <p class="lede">Fifteen years behind the camera, a decade of building software. Here's how the two came together.</p>
         </div>
         <p class="hint" aria-hidden="true"><span><span class="touch-only">Swipe up</span><span class="mouse-only">Scroll</span> for the story</span><i></i></p>
@@ -258,7 +258,7 @@ const SCATTER = [
       <!-- 07 Next -->
       <article class="ch ch-next" data-ch="7" style="z-index:8" aria-labelledby="st-next">
         <div class="bg">
-          <Image src={me} alt="Andrian Tam with a camera and backpack on a cobbled street" widths={[480, 960, 1333]} sizes="100vw" class="move" style="object-position:50% 10%" loading="lazy" format="avif" />
+          <Image src={me} alt="andriantam with a camera and backpack on a cobbled street" widths={[480, 960, 1333]} sizes="100vw" class="move" style="object-position:50% 10%" loading="lazy" format="avif" />
           <div class="shade" style="--dim:0.58"></div>
         </div>
         <div class="copy wrap center">
@@ -266,7 +266,7 @@ const SCATTER = [
           <h2 id="st-next" class="title">Let's build <em>something.</em></h2>
           <p class="lede">Brand, tech, or both. And if you want to talk photography, the coffee's on me.</p>
           <p class="ctas">
-            <a class="btn btn-primary" href="#contact">Say hello</a>
+            <a class="btn btn-primary" href="#contact">Contact me</a>
             <a class="btn" href="/photography">See the photography</a>
             <a class="btn" href="/resume">Read the resume</a>
           </p>
@@ -952,11 +952,11 @@ const SCATTER = [
     margin: 0;
     padding: 0;
     position: absolute;
-    right: clamp(1rem, 6vw, 6rem);
+    left: clamp(1rem, 6vw, 6rem); /* left side, clear of the face in the photo */
     top: clamp(6rem, 18svh, 11rem);
     display: grid;
     gap: 8px;
-    justify-items: end;
+    justify-items: start;
   }
   .chips li {
     padding: 0.45rem 1rem;
@@ -966,13 +966,22 @@ const SCATTER = [
     backdrop-filter: blur(8px);
     font-size: 0.85rem;
     --t: clamp(0, var(--in) * 2 - var(--k) * 0.12, 1);
-    transform: translateX(calc((1 - var(--t)) * 60vw));
+    transform: translateX(calc((1 - var(--t)) * -60vw));
     opacity: var(--t);
   }
   .chips li:first-child {
     background: var(--gold);
     color: var(--gold-ink);
     border-color: var(--gold);
+  }
+  /* Wider screens: a row across the top left, clear of the face and the headline. */
+  @media (min-width: 761px) {
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: min(28rem, 33vw);
+      top: clamp(5.5rem, 13svh, 8rem);
+    }
   }
 
   /* Chapter rail and progress */
@@ -1118,7 +1127,7 @@ const SCATTER = [
     }
     .chips {
       top: 5rem;
-      right: 2.6rem; /* clear of the chapter rail */
+      left: var(--gutter, 1rem);
       gap: 6px;
     }
     .chips li {

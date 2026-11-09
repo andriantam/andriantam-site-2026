@@ -38,7 +38,7 @@ const schema = [
 
 <Base
   title="Photography"
-  description="Fifteen years of photography by Andrian Tam: automotive and motorsport, events, weddings, products and film. No longer taking commissions, but always happy to talk photography over coffee."
+  description="Fifteen years of photography by andriantam: automotive and motorsport, events, weddings, products and film. No longer taking commissions, but always happy to talk photography over coffee."
   schema={schema}
 >
   <PageHero
@@ -90,7 +90,7 @@ const schema = [
         featured.map((a, i) => (
           <li class:list={["work-item reveal-wipe", { wide: i === 0 || i === 3 }]}>
             <a href={`/portfolio/${a.slug}`}>
-              <FlickrImg photo={a.cover!} alt={`${a.title}, photographed by Andrian Tam`} sizes="(min-width: 900px) 50vw, 100vw" />
+              <FlickrImg photo={a.cover!} alt={`${a.title}, photographed by andriantam`} sizes="(min-width: 900px) 50vw, 100vw" />
               <span class="work-meta">
                 <span class="work-cat">{a.categories.map((c) => CATEGORY_LABELS[c] ?? c)[0]}</span>
                 <span class="work-title">{a.title}</span>

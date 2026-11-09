@@ -14,7 +14,7 @@ const schema = [
   ...VIDEOS.map((v) => ({
     "@type": "VideoObject",
     name: v.title,
-    description: `${v.title}. Filmed by Andrian Tam.`,
+    description: `${v.title}. Filmed by andriantam.`,
     thumbnailUrl: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
     embedUrl: `https://www.youtube-nocookie.com/embed/${v.id}`,
     contentUrl: `https://www.youtube.com/watch?v=${v.id}`,
@@ -27,7 +27,7 @@ const schema = [
 
 <Base
   title="Videography"
-  description="Cinematic event films, motorsport coverage and vertical reels by Andrian Tam, formerly Tam's Up Productions."
+  description="Cinematic event films, motorsport coverage and vertical reels by andriantam, formerly Tam's Up Productions."
   schema={schema}
 >
   <PageHero
@@ -49,7 +49,7 @@ const schema = [
               <span class="play" aria-hidden="true" />
             </button>
             <h2>{v.title}</h2>
-            {v.client !== "Andrian Tam" && <p class="client">For {v.client}</p>}
+            {v.client !== "andriantam" && <p class="client">For {v.client}</p>}
           </li>
         ))
       }

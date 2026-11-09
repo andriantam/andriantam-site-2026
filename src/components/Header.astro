@@ -1,20 +1,21 @@
 ---
 const links = [
+  { href: "/", label: "Home" },
+  { href: "/resume", label: "Resume" },
   { href: "/photography", label: "Photography" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/articles", label: "Articles" },
-  { href: "/resume", label: "Resume" },
   { href: "/play", label: "Play" },
 ];
-const path = Astro.url.pathname;
-const active = (href: string) => path === href || path.startsWith(href + "/");
+const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 ---
 
 <header class="site-header">
   <div class="bar wrap">
-    <a href="/" class="brand" aria-label="Andrian Tam, home">
-      <span class="mark">AT</span>
-      <span class="name">Andrian Tam</span>
+    <a href="/" class="brand" aria-label="andriantam, home">
+      <span class="mark"><svg viewBox="33 18 473 473" aria-hidden="true"><path fill="currentColor" d="M33 61C70 84 150 96 269.5 96S469 84 506 61V136H33ZM191 136h37v312h-37ZM312 136h38v312h-38Z" /></svg></span>
+      <span class="name">andriantam</span>
     </a>
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav">Menu</button>
     <nav aria-label="Main" id="main-nav">
@@ -28,7 +29,7 @@ const active = (href: string) => path === href || path.startsWith(href + "/");
             </li>
           ))
         }
-        <li><a href="/#contact" class="cta">Say hello</a></li>
+        <li><a href="/#contact" class="cta">Contact me</a></li>
       </ul>
     </nav>
   </div>
@@ -113,8 +114,10 @@ const active = (href: string) => path === href || path.startsWith(href + "/");
     place-items: center;
     border-radius: 50%;
     font-family: var(--font-display);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
+  }
+  .mark svg {
+    width: 60%;
+    height: 60%;
   }
   .name {
     font-family: var(--font-display);

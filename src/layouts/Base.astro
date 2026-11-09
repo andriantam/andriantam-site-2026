@@ -23,7 +23,7 @@ const {
   title,
   description = SITE.description,
   image = "/og/default.jpg",
-  imageAlt = "Photography by Andrian Tam",
+  imageAlt = "Photography by andriantam",
   type = "website",
   schema = [],
   noindex = false,
@@ -70,7 +70,7 @@ const jsonLd = graph(websiteSchema(), personSchema(), ...schema);
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="alternate" type="application/rss+xml" title="Articles by Andrian Tam" href="/rss.xml" />
+    <link rel="alternate" type="application/rss+xml" title="Articles by andriantam" href="/rss.xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
     {preload.map((p) => <link rel="preload" href={p.href} as={p.as} type={p.type} media={p.media} fetchpriority="high" />)}

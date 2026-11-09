@@ -32,7 +32,7 @@ export async function exportShootGuide(g: Guide, onProgress: (p: number) => void
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const W = PAGE.w - PAGE.m * 2;
   const title = g.event || "Untitled shoot";
-  doc.setProperties({ title: `${title} - shoot guide`, subject: "Shoot guide", creator: "Photographer Simulator, andriantam.com/play" });
+  doc.setProperties({ title: `${title} - shoot guide`, subject: "Shoot guide", creator: "Photography Simulator, andriantam.com/play" });
 
   const imgData = async (b: Blob) => new Uint8Array(await b.arrayBuffer());
   const text = (s: string, x: number, y: number, size: number, style: "normal" | "bold" = "normal", color = INK, opts: Record<string, unknown> = {}) => {
@@ -164,7 +164,7 @@ export async function exportShootGuide(g: Guide, onProgress: (p: number) => void
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
     text(`${title}  ·  Shoot guide`, PAGE.m, PAGE.h - 9, 7.5, "normal", MUTED);
-    text(`Photographer Simulator  ·  andriantam.com/play  ·  ${p} / ${pages}`, PAGE.m + W, PAGE.h - 9, 7.5, "normal", MUTED, { align: "right" });
+    text(`Photography Simulator  ·  andriantam.com/play  ·  ${p} / ${pages}`, PAGE.m + W, PAGE.h - 9, 7.5, "normal", MUTED, { align: "right" });
   }
 
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "shoot";

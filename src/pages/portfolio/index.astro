@@ -27,7 +27,7 @@ const schema = [
   ]),
   {
     "@type": "CollectionPage",
-    name: "Portfolio of Andrian Tam",
+    name: "Portfolio of andriantam",
     url: abs("/portfolio"),
     author: { "@id": PERSON_ID },
     mainEntity: {
@@ -40,7 +40,7 @@ const schema = [
 
 <Base
   title="Portfolio"
-  description={`Automotive, motorsport, event, wedding and product photography by Andrian Tam, plus videography. ${albums.length} albums from Malaysia and beyond.`}
+  description={`Automotive, motorsport, event, wedding and product photography by andriantam, plus videography. ${albums.length} albums from Malaysia and beyond.`}
   schema={schema}
 >
   <PageHero
@@ -84,7 +84,7 @@ const schema = [
           a.cover ? (
             <li class="album reveal" data-cats={a.categories.join(" ")}>
               <a href={`/portfolio/${a.slug}`}>
-                <FlickrImg photo={a.cover} alt={`${a.title}, photographed by Andrian Tam`} sizes="(min-width: 1100px) 380px, (min-width: 700px) 50vw, 100vw" />
+                <FlickrImg photo={a.cover} alt={`${a.title}, photographed by andriantam`} sizes="(min-width: 1100px) 380px, (min-width: 700px) 50vw, 100vw" />
                 <span class="meta">
                   <span class="cat">{a.categories.map((c) => CATEGORY_LABELS[c] ?? c).join(" · ")}</span>
                   <span class="title">{a.title}</span>

@@ -26,7 +26,7 @@ export const SERVICES: Service[] = [
     outcome: "Sharp, story-led images you can publish the same week",
     body: "Automotive and motorsport, launches, corporate events, weddings and products. More than 15 years behind the camera, from rolling shots at Sepang to gala dinners and studio product work.",
     image: photography,
-    alt: "Andrian Tam photographing an event on stage with two camera bodies",
+    alt: "andriantam photographing an event on stage with two camera bodies",
     href: "/portfolio",
   },
   {
@@ -35,7 +35,7 @@ export const SERVICES: Service[] = [
     outcome: "Cinematic edits in wide format and vertical reels",
     body: "Event recaps, brand films and social-first reels, shot with a cinematic tone. Formerly Tam's Up Productions.",
     image: videography,
-    alt: "Andrian Tam filming with a camera on a handheld gimbal",
+    alt: "andriantam filming with a camera on a handheld gimbal",
     href: "/portfolio/videography",
   },
   {
@@ -44,7 +44,7 @@ export const SERVICES: Service[] = [
     outcome: "One person, both deliverables, one budget",
     body: "For lean productions that need photos and video from a single shooter. Some moments will exist on one format and not the other, and we agree on that up front.",
     image: hybrid,
-    alt: "Andrian Tam with a telephoto lens at a car event",
+    alt: "andriantam with a telephoto lens at a car event",
   },
   {
     id: "film",
@@ -52,7 +52,7 @@ export const SERVICES: Service[] = [
     outcome: "Real film, for couples and brands that want texture",
     body: "35mm and medium format, including weddings shot on film. A slower, more deliberate way of working that shows in the final frames.",
     image: film,
-    alt: "Andrian Tam holding a twin-lens reflex medium format film camera",
+    alt: "andriantam holding a twin-lens reflex medium format film camera",
   },
   {
     id: "drone",
@@ -68,7 +68,7 @@ export const SERVICES: Service[] = [
     outcome: "The driver's-eye view your audience never gets",
     body: "Helmet-mounted point-of-view capture, with me as the on-camera POV talent, for drives, track sessions and experiential content.",
     image: pov,
-    alt: "Andrian Tam wearing a helmet rig with a mounted point-of-view camera",
+    alt: "andriantam wearing a helmet rig with a mounted point-of-view camera",
   },
   {
     id: "tech",
@@ -76,7 +76,7 @@ export const SERVICES: Service[] = [
     outcome: "A senior engineer in your corner",
     body: "Nearly 10 years building software for clients across Asia, Europe, the US and Australia, including six years at McKinsey Digital. I advise on technical direction and help build engineering teams.",
     image: tech,
-    alt: "Andrian Tam coding on a laptop in a workshop",
+    alt: "andriantam coding on a laptop in a workshop",
     href: "/resume",
   },
 ];
@@ -134,15 +134,15 @@ export const TESTIMONIALS: Testimonial[] = [
 // Answers written from facts on the site. Shown on the photography page and marked up as FAQPage.
 export const FAQ: { q: string; a: string }[] = [
   {
-    q: "Is Andrian Tam taking photography bookings?",
+    q: "Is andriantam taking photography bookings?",
     a: "No. Andrian no longer takes photography commissions. Photography is back to being a personal passion for him, without client briefs. He's happy to meet for a coffee to talk photography or share what he's learned: email andriantamwj@gmail.com.",
   },
   {
-    q: "What kind of photography did Andrian Tam do?",
+    q: "What kind of photography did andriantam do?",
     a: "Automotive and motorsport (rolling shots, track days, car launches), corporate and brand events, weddings and couples, products, and food. He also shoots film in 35mm and medium format.",
   },
   {
-    q: "Where is Andrian Tam based?",
+    q: "Where is andriantam based?",
     a: "Singapore. He photographed across Malaysia, and in Singapore, Australia and around Southeast Asia.",
   },
   {
@@ -153,8 +153,8 @@ export const FAQ: { q: string; a: string }[] = [
 
 export const VIDEOS = [
   { id: "oWwDPp2DEF4", title: "Motul Awesome Racing Team at Sepang Circuit 1000KM 2024", client: "MR Lubricant Sdn Bhd" },
-  { id: "HsjUOL-zKVI", title: "Oversteer Movie Malaysia exclusive car gathering, meet and greet", client: "Andrian Tam" },
-  { id: "3Gkq9NFsofQ", title: "What is the car scene like in Sydney and NSW?", client: "Andrian Tam" },
+  { id: "HsjUOL-zKVI", title: "Oversteer Movie Malaysia exclusive car gathering, meet and greet", client: "andriantam" },
+  { id: "3Gkq9NFsofQ", title: "What is the car scene like in Sydney and NSW?", client: "andriantam" },
 ];
 
 export const REELS = [

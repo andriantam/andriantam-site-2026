@@ -12,8 +12,8 @@ export function personSchema(full = false) {
   const base: Record<string, unknown> = {
     "@type": "Person",
     "@id": PERSON_ID,
-    name: SITE.name,
-    alternateName: SITE.handle,
+    name: SITE.person,
+    alternateName: SITE.name,
     url: SITE.url,
     image: abs("/og/andrian-tam.jpg"),
     jobTitle: ["Head of Brand", "Software engineer", "Photographer"],

@@ -142,7 +142,7 @@ export async function framed(blob: Blob, m: ShotMeta): Promise<Blob> {
   ctx.fillText(`#${m.n}  ·  ${timeLabel(m.time)}`, pad + W, y1);
   ctx.fillStyle = "#6b6670";
   ctx.font = `400 ${small}px ${font}`;
-  ctx.fillText(`Photographer Simulator  ·  andriantam.com/play`, pad + W, y2);
+  ctx.fillText(`Photography Simulator  ·  andriantam.com/play`, pad + W, y2);
   return new Promise((res) => c.toBlob((b) => res(b!), "image/jpeg", 0.92));
 }
 
