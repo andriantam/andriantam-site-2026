@@ -1327,7 +1327,7 @@ const SCATTER = [
     }
 
     // Rail: jump to a chapter.
-    rail.forEach((b, i) => b.addEventListener("click", () => scrollTo({ top: top + i * vh, behavior: "smooth" })));
+    rail.forEach((b, i) => b.addEventListener("click", () => go(i)));
 
     // When a swipe or scroll ends inside the story, settle on a chapter. Moving more than a little
     // (12% of a screen) away from the chapter you were on carries on to the next one in that direction,
@@ -1335,13 +1335,49 @@ const SCATTER = [
     let settleTimer = 0;
     let from = Math.round(clamp((scrollY - top) / vh, 0, n - 1));
     let touching = false;
-    addEventListener("touchstart", () => (touching = true), { passive: true });
-    addEventListener("touchend", () => {
+
+    // Touch screens: inside the story, one swipe is one chapter, however hard the flick. The page's own
+    // scrolling (and its momentum) is held back and the swipe's direction picks the next chapter. At the
+    // first and last chapter, a swipe out of the story scrolls the page normally.
+    const go = (i: number) => {
+      from = clamp(i, 0, n - 1);
+      scrollTo({ top: top + from * vh, behavior: "smooth" });
+    };
+    let sy = 0, sx = 0, paging: boolean | null = null;
+    const inStory = () => {
+      const raw = (scrollY - top) / vh;
+      return raw > -0.02 && raw < n - 1 + 0.02;
+    };
+    addEventListener("touchstart", (e) => {
+      touching = true;
+      sy = e.touches[0].clientY;
+      sx = e.touches[0].clientX;
+      paging = e.touches.length === 1 && inStory() ? null : false;
+    }, { passive: true });
+    addEventListener("touchmove", (e) => {
+      if (paging === false) return;
+      const dy = sy - e.touches[0].clientY; // > 0: swiping up, towards the next chapter
+      if (paging === null) {
+        if (Math.abs(dy) < 2 && Math.abs(sx - e.touches[0].clientX) < 2) return e.preventDefault();
+        const leaving = (from >= n - 1 && dy > 0) || (from <= 0 && dy < 0);
+        paging = !leaving;
+        if (!paging) return;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    addEventListener("touchend", (e) => {
       touching = false;
+      if (paging) {
+        paging = null;
+        const dy = sy - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 24) go(from + (dy > 0 ? 1 : -1));
+        return;
+      }
+      paging = null;
       clearTimeout(settleTimer);
       settleTimer = window.setTimeout(settle, 160);
     }, { passive: true });
-    addEventListener("touchcancel", () => (touching = false), { passive: true });
+    addEventListener("touchcancel", () => ((touching = false), (paging = null)), { passive: true });
     const settle = () => {
       if (touching) return;
       const raw = (scrollY - top) / vh;
