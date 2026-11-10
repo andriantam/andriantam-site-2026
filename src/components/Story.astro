@@ -13,6 +13,7 @@ import events from "../assets/photos/events-header.jpg";
 import walking from "../assets/photos/hero-bg.jpg";
 import me from "../assets/photos/me.jpg";
 import showroom from "../assets/photos/cabinetry-showroom.jpg";
+import mckTeam from "../assets/photos/mckinsey-team.jpg";
 
 interface Props {
   prints: { title: string; cover: FlickrPhoto }[];
@@ -169,6 +170,8 @@ const SCATTER = [
       <!-- 04 McKinsey: serious business, financial services -->
       <article class="ch ch-mck" data-ch="4" style="z-index:5" aria-labelledby="st-mck">
         <div class="bg dark">
+          <Image src={mckTeam} alt="" widths={[640, 1280, 1920]} sizes="100vw" class="move" style="object-position:55% 45%" loading="lazy" format="avif" />
+          <div class="tint"></div>
           <div class="grid-bg"></div>
         </div>
         <div class="dash" aria-hidden="true" data-dash>
@@ -777,6 +780,15 @@ const SCATTER = [
   /* 04 Dashboards */
   .bg.dark {
     background: radial-gradient(ellipse at 70% 30%, #1b2233, #07080c 70%);
+  }
+  /* The team photo sits well back: a deep navy tint keeps the dashboards and copy readable. */
+  .bg.dark .tint {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to top, rgba(4, 5, 9, 0.9) 0%, rgba(4, 5, 9, 0.15) 60%),
+      radial-gradient(ellipse at 70% 30%, rgba(27, 34, 51, 0.6), rgba(7, 8, 12, 0.7) 70%),
+      rgba(0, 0, 0, calc(var(--leave) * 0.5));
   }
   .grid-bg {
     position: absolute;
