@@ -4,7 +4,7 @@ import sitemap from "@astrojs/sitemap";
 import fs from "node:fs";
 import path from "node:path";
 
-const SITE = "https://www.andriantam.com";
+const SITE = "https://andriantam.com";
 
 // Writes Cloudflare Pages' _redirects file after the build, so every old URL
 // (/article/<blogger id>, /portfolio/<flickr album id>, /web-development, /project/...)

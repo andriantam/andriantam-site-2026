@@ -1,11 +1,11 @@
 // One place for everything about you and the site.
 export const SITE = {
-  url: "https://www.andriantam.com",
+  url: "https://andriantam.com",
   name: "andriantam",
   // Full name: only on the resume and in the Person structured data that tells search engines who andriantam is.
   person: "Andrian Tam",
   handle: "andriantam",
-  title: "andriantam | Head of Brand, software engineer and photographer",
+  title: "andriantam | Passionate about solving problems and creating solutions",
   description:
     "andriantam is Head of Brand at TROOPERS Singapore and a software engineer who spent six years at McKinsey & Company's digital practice. A photographer for over fifteen years, now shooting for the love of it.",
   tagline: "Moments are not just meant to be captured, but to be experienced",
