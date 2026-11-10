@@ -1133,13 +1133,19 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
   let gyroYaw = 0, gyroPitch = 0, gyroOn = false;
   const gyroBtn = $<HTMLButtonElement>("[data-gyro]");
   const DEG = Math.PI / 180;
-  function onMotion(e: DeviceMotionEvent) {
+  // The standard says rotationRate.beta is about the device's x axis (across the screen) and gamma about its y axis
+  // (up the screen). Safari on iPhone and iPad (every iOS browser uses it) reports them as alpha = x, beta = y,
+  // gamma = z instead.
+  const iosAxes = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function onMotion(e: DeviceMotionEvent, ios = iosAxes) {
     const r = e.rotationRate;
-    if (!r || r.beta == null || r.gamma == null) return;
+    if (!r) return;
+    const rx = ios ? r.alpha : r.beta, ry = ios ? r.beta : r.gamma;
+    if (rx == null || ry == null) return;
     const iv = e.interval || 0;
     const dt = Math.min(0.1, iv > 1 ? iv / 1000 : iv || 0.016); // milliseconds on most browsers, seconds on some
     const dead = (v: number) => (Math.abs(v) < 0.4 ? 0 : v); // ignore sensor noise when held still
-    const bx = dead(r.beta) * DEG * dt, gy = dead(r.gamma) * DEG * dt; // about the device's x and y axes
+    const bx = dead(rx) * DEG * dt, gy = dead(ry) * DEG * dt; // about the device's x and y axes
     const angle = (screen.orientation?.angle ?? (window as unknown as { orientation?: number }).orientation ?? 0) as number;
     // Map device axes to the screen: yaw turns about the screen's up axis, pitch about its right axis.
     if (angle === 90) (gyroYaw += bx), (gyroPitch -= gy);
@@ -1147,13 +1153,14 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     else if (angle === 180) (gyroYaw -= gy), (gyroPitch -= bx);
     else (gyroYaw += gy), (gyroPitch += bx);
   }
+  const handleMotion = (e: DeviceMotionEvent) => onMotion(e);
   function showGyro(label?: string) {
     gyroBtn.setAttribute("aria-pressed", String(gyroOn));
     gyroBtn.textContent = label ?? (gyroOn ? "Gyro on" : "Gyro off");
   }
   async function toggleGyro() {
     if (gyroOn) {
-      removeEventListener("devicemotion", onMotion);
+      removeEventListener("devicemotion", handleMotion);
       gyroOn = false;
       return showGyro();
     }
@@ -1166,7 +1173,7 @@ export async function mountSim(root: HTMLElement, galleryRoot: HTMLElement) {
     } catch {
       return showGyro("Gyro blocked");
     }
-    addEventListener("devicemotion", onMotion);
+    addEventListener("devicemotion", handleMotion);
     gyroOn = true;
     showGyro();
   }

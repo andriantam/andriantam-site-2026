@@ -760,11 +760,13 @@ const schema = [
   :global(.is-full) .exit-btn {
     display: block;
   }
-  /* Full screen: Camera settings sits on the right, just above Take photo. */
+  /* Full screen: Camera settings sits in the bottom bar between the joystick and Take photo, level with the
+     joystick's centre, below the photo frame and its stats line. */
   .settings-btn {
     position: absolute;
-    right: 3%;
-    bottom: calc(max(1.4rem, calc(env(safe-area-inset-bottom) + 0.8rem)) + clamp(48px, 13vw, 64px) + 2.4rem);
+    left: 50%;
+    translate: -50% 0;
+    bottom: calc(max(1.2rem, calc(env(safe-area-inset-bottom) + 0.6rem)) + clamp(72px, 22vw, 96px) / 2 - 17px);
     z-index: 8;
     height: 34px;
     padding: 0 0.9rem;
