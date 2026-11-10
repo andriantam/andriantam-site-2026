@@ -1343,7 +1343,7 @@ const SCATTER = [
       from = clamp(i, 0, n - 1);
       scrollTo({ top: top + from * vh, behavior: "smooth" });
     };
-    let sy = 0, sx = 0, paging: boolean | null = null;
+    let sy = 0, sx = 0, baseY = 0, paging: boolean | null = null;
     const inStory = () => {
       const raw = (scrollY - top) / vh;
       return raw > -0.02 && raw < n - 1 + 0.02;
@@ -1352,6 +1352,7 @@ const SCATTER = [
       touching = true;
       sy = e.touches[0].clientY;
       sx = e.touches[0].clientX;
+      baseY = scrollY;
       paging = e.touches.length === 1 && inStory() ? null : false;
     }, { passive: true });
     addEventListener("touchmove", (e) => {
@@ -1364,20 +1365,27 @@ const SCATTER = [
         if (!paging) return;
       }
       e.preventDefault();
+      // The page follows your finger, up to one chapter either way, until you let go.
+      const y = clamp(baseY + dy, Math.max(top, top + (from - 1) * vh), Math.min(top + (n - 1) * vh, top + (from + 1) * vh));
+      scrollTo({ top: y, behavior: "instant" });
     }, { passive: false });
     addEventListener("touchend", (e) => {
       touching = false;
       if (paging) {
         paging = null;
         const dy = sy - e.changedTouches[0].clientY;
-        if (Math.abs(dy) > 24) go(from + (dy > 0 ? 1 : -1));
+        go(Math.abs(dy) > 24 ? from + (dy > 0 ? 1 : -1) : from);
         return;
       }
       paging = null;
       clearTimeout(settleTimer);
       settleTimer = window.setTimeout(settle, 160);
     }, { passive: true });
-    addEventListener("touchcancel", () => ((touching = false), (paging = null)), { passive: true });
+    addEventListener("touchcancel", () => {
+      touching = false;
+      if (paging) go(from);
+      paging = null;
+    }, { passive: true });
     const settle = () => {
       if (touching) return;
       const raw = (scrollY - top) / vh;
