@@ -1381,6 +1381,37 @@ const SCATTER = [
       clearTimeout(settleTimer);
       settleTimer = window.setTimeout(settle, 160);
     }, { passive: true });
+    // Mouse wheel and trackpad: the same, one scroll gesture is one chapter. After a move, a trackpad keeps
+    // sending wheel events for a second or so of momentum, each smaller than the last; those are swallowed.
+    // The lock lifts when the wheel goes quiet, or once the move has had time to play and the events get
+    // bigger again (or change direction), which means you've started a new swipe or turned the wheel again.
+    let wheelAcc = 0, wheelLocked = false, wheelQuiet = 0, lockedAt = 0, lastAbs = 0, lastSign = 0;
+    addEventListener("wheel", (e) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const d = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? vh : 1);
+      const abs = Math.abs(d), sign = Math.sign(d);
+      if (wheelLocked && performance.now() - lockedAt > 450) {
+        const fresh = sign !== lastSign || abs > lastAbs * 1.2 + 1 || (abs >= 50 && abs >= lastAbs);
+        if (fresh) wheelLocked = false;
+      }
+      lastAbs = abs;
+      lastSign = sign;
+      if (!wheelLocked && (!inStory() || (from >= n - 1 && d > 0) || (from <= 0 && d < 0))) {
+        wheelAcc = 0;
+        return; // scrolling out of the story: the page scrolls normally
+      }
+      e.preventDefault();
+      clearTimeout(wheelQuiet);
+      wheelQuiet = window.setTimeout(() => ((wheelAcc = 0), (wheelLocked = false)), 180);
+      if (wheelLocked) return;
+      wheelAcc += d;
+      if (Math.abs(wheelAcc) >= 30) {
+        wheelLocked = true;
+        lockedAt = performance.now();
+        wheelAcc = 0;
+        go(from + (d > 0 ? 1 : -1));
+      }
+    }, { passive: false });
     addEventListener("touchcancel", () => {
       touching = false;
       if (paging) go(from);

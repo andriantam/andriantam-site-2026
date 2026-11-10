@@ -21,6 +21,8 @@ export interface CarParts {
   rearAxle: number; // local x of the rear axle
   headlightMats: THREE.MeshStandardMaterial[];
   tailMats: THREE.MeshStandardMaterial[];
+  guideMats: THREE.MeshStandardMaterial[]; // the tail lamps' LED light guides, much brighter than the lens
+  drlMats: THREE.MeshStandardMaterial[]; // the headlamps' C-shaped LED light guides (daytime running lights)
   headlightPos: THREE.Vector3[]; // local positions of the two headlamps
 }
 
@@ -57,7 +59,7 @@ export class CarRig {
       this.spots.push(s);
     }
     // Remember each lamp's colour, then switch it off (tuneCarMaterial already zeroed most of them).
-    for (const m of [...parts.headlightMats, ...parts.tailMats]) m.emissiveIntensity = 0;
+    for (const m of [...parts.headlightMats, ...parts.tailMats, ...parts.guideMats, ...parts.drlMats]) m.emissiveIntensity = 0;
   }
 
   /** The car's soft contact shadow rides along with it. */
@@ -140,11 +142,24 @@ export class CarRig {
     for (const s of this.spots) s.intensity = candelaToScene(12000) * on; // ~12,000 cd per low beam
     for (const m of this.parts.headlightMats) {
       m.emissive.setRGB(1, 0.96, 0.9);
-      m.emissiveIntensity = nitsToScene(40000) * on; // LED lamp, seen head-on
+      // Seen head-on the projector is blinding; capped so it reads as a white-hot disc rather than a white smear.
+      m.emissiveIntensity = (m.emissiveMap ? Math.min(nitsToScene(40000), 60) : nitsToScene(40000)) * on;
+    }
+    // The C-shaped light guide: a cool white LED strip, bright but well below the projector.
+    for (const m of this.parts.drlMats) {
+      m.emissive.setRGB(0.92, 0.96, 1);
+      m.emissiveIntensity = Math.min(nitsToScene(12000), 5) * on;
     }
     for (const m of this.parts.tailMats) {
-      m.emissive.setRGB(1, 0.03, 0.02);
-      m.emissiveIntensity = nitsToScene(1500) * on;
+      // ~1,500 nits, but capped: at night that is thousands of times brighter than the car park, and the filmic
+      // tone mapping turns such an overexposed red white. Capped, the lamps read red in every photo.
+      m.emissive.setRGB(1, 0.012, 0.006);
+      m.emissiveIntensity = Math.min(nitsToScene(1500), 0.7) * on; // the glow adds on top of the red-tinted lamp
+    }
+    // The C-shaped LED guide around the reverse light: so bright the camera clips it to a warm yellow-white core.
+    for (const m of this.parts.guideMats) {
+      m.emissive.setRGB(1, 0.5, 0.04);
+      m.emissiveIntensity = Math.min(nitsToScene(20000), 2.2) * on;
     }
   }
 }
@@ -153,8 +168,9 @@ const approach = (v: number, t: number, d: number) => (v < t ? Math.min(t, v + d
 
 /**
  * Splits a loaded car model into wheel pivots so the wheels can steer and roll.
- * `group` is the car's root (scale 1, centred, nose along ±x). Works on the Sketchfab WRX's node layout,
- * where each wheel is a cluster of sibling nodes (tyre, rim, disc...) and calipers are separate.
+ * `group` is the car's root (scale 1, centred, nose along ±x). Works on two Sketchfab WRX layouts:
+ * one where each wheel is its own node ("3DWheel Front L") with calipers beside it ("Calliper Front L_07"),
+ * and an older one where each wheel is a cluster of sibling nodes (tyre, rim, disc...).
  */
 export function rigModel(group: THREE.Group, length: number, width: number): CarParts {
   group.updateMatrixWorld(true);
@@ -182,31 +198,46 @@ export function rigModel(group: THREE.Group, length: number, width: number): Car
     return [...set];
   };
   const bulbs = meshesByMat(/^Light_Bulb$/);
-  const frontX = bulbs.length ? localCentre(bulbs[0]).x : 1;
+  const named = (re: RegExp) => {
+    const out: THREE.Object3D[] = [];
+    group.traverse((o) => re.test(o.name) && out.push(o));
+    return out;
+  };
+  const wheelNodes = named(/^3DWheel[ _](Front|Rear)[ _][LR]/);
+  const firstFront = wheelNodes.find((o) => /Front/.test(o.name));
+  const frontX = firstFront ? localCentre(firstFront).x : bulbs.length ? localCentre(bulbs[0]).x : 1;
   const frontSign: 1 | -1 = frontX >= 0 ? 1 : -1;
 
-  // Wheel parts: nodes named Tire/Rim/Brake_Disc/Drum/Cylinder/Logo that sit beside the body node.
-  const wheelPart = /^(Tire|Rim|Brake_Disc|Drum|Cylinder|Logo)\d*_\d+$/;
-  let container: THREE.Object3D = group;
-  group.traverse((o) => {
-    if (/^WRX-body/.test(o.name) && o.parent) container = o.parent;
-  });
-  const parts = container.children.filter((o) => wheelPart.test(o.name));
-  const calipers = container.children.filter((o) => /wheelbrake/i.test(o.name));
-
   const clusters: { c: THREE.Vector3; objs: THREE.Object3D[] }[] = [];
-  for (const p of parts) {
-    const c = localCentre(p);
-    let k = clusters.find((q) => Math.abs(q.c.x - c.x) < 0.5 && Math.sign(q.c.z) === Math.sign(c.z));
-    if (!k) clusters.push((k = { c: c.clone(), objs: [] }));
-    k.objs.push(p);
+  let calipers: THREE.Object3D[];
+  if (wheelNodes.length) {
+    // Each wheel is one node; calipers are separate groups that steer but don't spin.
+    wheelNodes.forEach((o) => clusters.push({ c: localCentre(o), objs: [o] }));
+    calipers = named(/^Calliper[ _](Front|Rear)[ _][LR]_\d+$/);
+  } else {
+    // Wheel parts: nodes named Tire/Rim/Brake_Disc/Drum/Cylinder/Logo that sit beside the body node.
+    const wheelPart = /^(Tire|Rim|Brake_Disc|Drum|Cylinder|Logo)\d*_\d+$/;
+    let container: THREE.Object3D = group;
+    group.traverse((o) => {
+      if (/^WRX-body/.test(o.name) && o.parent) container = o.parent;
+    });
+    const parts = container.children.filter((o) => wheelPart.test(o.name));
+    calipers = container.children.filter((o) => /wheelbrake/i.test(o.name));
+    for (const p of parts) {
+      const c = localCentre(p);
+      let k = clusters.find((q) => Math.abs(q.c.x - c.x) < 0.5 && Math.sign(q.c.z) === Math.sign(c.z));
+      if (!k) clusters.push((k = { c: c.clone(), objs: [] }));
+      k.objs.push(p);
+    }
   }
 
   const wheels: Wheel[] = [];
   let radius = 0.33;
   for (const k of clusters) {
     // Centre on the tyre (the most reliable part), axle across the car.
-    const tyre = k.objs.find((o) => /^Tire/.test(o.name)) ?? k.objs[0];
+    let tyre = k.objs.find((o) => /^Tire/.test(o.name));
+    if (!tyre) k.objs[0].traverse((o) => void (!tyre && /^Tire[ _]/.test(o.name) && (tyre = o)));
+    tyre ??= k.objs[0];
     const tb = new THREE.Box3().setFromObject(tyre);
     const centre = tb.getCenter(new THREE.Vector3()).applyMatrix4(inv);
     radius = (tb.max.y - tb.min.y) / 2;
@@ -251,8 +282,11 @@ export function rigModel(group: THREE.Group, length: number, width: number): Car
     wheelRadius: radius,
     wheelbase: Math.abs(frontAxle - rearAxle) || 2.65,
     rearAxle,
-    headlightMats: matsByName(/^(Light_Bulb|Front_Light_Strip)$/),
+    // Newer model: only the projector lens shines; older model: the bulb and its light strip.
+    headlightMats: matsByName(/^Head_Projector$/).length ? matsByName(/^Head_Projector$/) : matsByName(/^(Light_Bulb|Front_Light_Strip)$/),
+    drlMats: matsByName(/^Head_Guide$/),
     tailMats: matsByName(/^Bright_Lights/),
+    guideMats: matsByName(/^Tail_Guide$/),
     headlightPos,
   };
 }

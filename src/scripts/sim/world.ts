@@ -650,6 +650,7 @@ async function loadCar(focusTargets: THREE.Object3D[]): Promise<CarResult> {
         // Glass shouldn't block the sun completely or cast hard shadows inside the cabin.
         if ((m.material as THREE.Material).transparent) m.castShadow = false;
       });
+      tailLampGlass(root);
       const final = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3());
       return { group, length: final.x, width: final.z, name: "Model car", placeholder: false };
     }
@@ -669,16 +670,25 @@ function tuneCarMaterial(mat: THREE.MeshPhysicalMaterial) {
   if (/light|bulb/.test(name) && !/backdrop/.test(name)) {
     mat.emissiveIntensity = 0;
     mat.emissive.setRGB(0, 0, 0);
-    if (!mat.transparent) mat.roughness = 0.08;
+    // Lamp glass is smooth (the textured lamp housing of the newer model keeps its own finish).
+    if (!mat.transparent && !/^lighta/.test(name)) mat.roughness = 0.08;
   }
-  if (/plastic|rubber|tire|tyre|carbon|logo|emblem|material\.01|brake_light|glass/.test(name)) mat.metalness = 0;
+  if (/plastic|rubber|tire|tyre|carbon|logo|emblem|material\.01|brake_light|glass/.test(name) && !/surr/.test(name)) mat.metalness = 0;
   if (/rubber|tire|tyre/.test(name)) mat.roughness = Math.max(mat.roughness, 0.85);
   if (name === "car_paint") {
     // Metallic paint under clearcoat: coloured, partly metallic base, mirror-like top coat.
-    mat.metalness = 0.55;
-    mat.roughness = 0.38;
+    // A model whose paint is already glossy keeps its own base; a rough one gets a typical metallic base.
+    if (mat.roughness > 0.2) {
+      mat.metalness = 0.55;
+      mat.roughness = 0.38;
+    }
     mat.clearcoat = 1;
     mat.clearcoatRoughness = 0.03;
+  }
+  // Sharper textures on surfaces seen at a slant (the grille, tyres, the cabin through the glass).
+  for (const key of ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap"] as const) {
+    const t = mat[key];
+    if (t) t.anisotropy = 8;
   }
   if (/window_glass/.test(name)) {
     mat.roughness = 0.03;
@@ -686,6 +696,80 @@ function tuneCarMaterial(mat: THREE.MeshPhysicalMaterial) {
   }
   if (/mirror|chrome|reflective_metal/.test(name)) mat.metalness = 1;
   mat.needsUpdate = true;
+}
+
+// Tail lamps as real glass: a clear, glossy outer lens with the parts behind it tinted red, the way light passing
+// through red glass looks (without the cost of a refraction pass). Two layers share the lens geometry:
+//  - a tint layer that multiplies whatever is behind it by red, so the reflectors keep their detail but turn red;
+//  - the lens itself, which only adds its reflections (and, when the lamps are on, its red glow).
+function tailLampGlass(root: THREE.Object3D) {
+  const lenses: THREE.Mesh[] = [], guides: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const name = (m.material as THREE.Material).name;
+    if (name === "Bright_Lights_Tail") lenses.push(m);
+    // Lit parts (the tail lamps' light guides, the headlamps' light guides and projectors) get a glow layer.
+    if (/^(Tail_Guide|Head_Guide|Head_Projector)$/.test(name)) guides.push(m);
+  });
+  // Lit parts: the housing keeps its own surface, and a glow-only copy of the same shape is added on top. It is
+  // drawn last and ignores depth by a hair (polygon offset), so the lens in front can't hide it; it shines through
+  // the glass like the real lamp does, and is invisible while the lamps are off. The glow follows the part's own
+  // texture, so the LED strip's facets and the projector's lens pattern show in the light.
+  for (const guide of guides) {
+    const base = guide.material as THREE.MeshStandardMaterial;
+    const glow = new THREE.MeshStandardMaterial({
+      name: base.name,
+      color: 0x000000,
+      emissive: 0x000000,
+      emissiveMap: base.map ?? null,
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -40,
+    });
+    base.name = `${base.name}_Housing`;
+    const copy = new THREE.Mesh(guide.geometry, glow);
+    copy.renderOrder = 3;
+    copy.position.copy(guide.position);
+    copy.quaternion.copy(guide.quaternion);
+    copy.scale.copy(guide.scale);
+    copy.castShadow = false;
+    guide.parent?.add(copy);
+  }
+  for (const lens of lenses) {
+    const mat = lens.material as THREE.MeshPhysicalMaterial;
+    mat.color.setRGB(0, 0, 0);
+    mat.opacity = 1;
+    mat.transparent = true;
+    mat.blending = THREE.AdditiveBlending;
+    mat.depthWrite = false;
+    mat.roughness = 0.03;
+    if (mat.isMeshPhysicalMaterial) mat.specularIntensity = 1;
+    mat.needsUpdate = true;
+    lens.renderOrder = 2;
+    lens.castShadow = false;
+    const tint = new THREE.Mesh(
+      lens.geometry,
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(1, 0.03, 0.02),
+        blending: THREE.MultiplyBlending,
+        premultipliedAlpha: true,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    tint.renderOrder = 1;
+    tint.position.copy(lens.position);
+    tint.quaternion.copy(lens.quaternion);
+    tint.scale.copy(lens.scale);
+    lens.parent?.add(tint);
+  }
 }
 
 // A stand-in sports sedan built from primitives, used until a real model is dropped in at /public/sim/car.glb.
