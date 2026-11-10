@@ -302,9 +302,6 @@ const SCATTER = [
     scroll-snap-align: start;
     pointer-events: none;
   }
-  :global(html:has(.story)) {
-    scroll-snap-type: y proximity;
-  }
   .stage {
     position: sticky;
     top: 0;
@@ -1320,12 +1317,31 @@ const SCATTER = [
     // Rail: jump to a chapter.
     rail.forEach((b, i) => b.addEventListener("click", () => scrollTo({ top: top + i * vh, behavior: "smooth" })));
 
-    // Settle on the nearest chapter when a swipe or scroll ends inside the story.
+    // When a swipe or scroll ends inside the story, settle on a chapter. Moving more than a little
+    // (12% of a screen) away from the chapter you were on carries on to the next one in that direction,
+    // so one short swipe on a phone is enough; smaller nudges fall back to where you were.
     let settleTimer = 0;
+    let from = Math.round(clamp((scrollY - top) / vh, 0, n - 1));
+    let touching = false;
+    addEventListener("touchstart", () => (touching = true), { passive: true });
+    addEventListener("touchend", () => {
+      touching = false;
+      clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(settle, 160);
+    }, { passive: true });
+    addEventListener("touchcancel", () => (touching = false), { passive: true });
     const settle = () => {
+      if (touching) return;
       const raw = (scrollY - top) / vh;
-      if (raw <= 0.02 || raw >= n - 1 + 0.02) return;
-      const target = Math.round(raw);
+      if (raw <= 0.02 || raw >= n - 1 + 0.02) {
+        from = Math.round(clamp(raw, 0, n - 1));
+        return;
+      }
+      let target = Math.round(raw);
+      if (raw - from > 0.12) target = Math.max(target, from + 1);
+      else if (from - raw > 0.12) target = Math.min(target, from - 1);
+      target = clamp(target, 0, n - 1);
+      from = target;
       if (Math.abs(raw - target) > 0.01) scrollTo({ top: top + target * vh, behavior: "smooth" });
     };
     addEventListener("scroll", () => {
