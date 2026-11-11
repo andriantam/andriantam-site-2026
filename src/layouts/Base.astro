@@ -17,6 +17,8 @@ interface Props {
   published?: string;
   modified?: string;
   preload?: { href: string; as: string; type?: string; media?: string }[];
+  footer?: boolean; // false where the page shows the footer itself (the home page)
+  minimalHeader?: boolean; // wordmark and a Menu button only, on every screen size (the home page)
 }
 
 const {
@@ -31,6 +33,8 @@ const {
   published,
   modified,
   preload = [],
+  minimalHeader = false,
+  footer = true,
 } = Astro.props;
 
 const fullTitle = title ? `${title} | ${SITE.name}` : SITE.title;
@@ -99,10 +103,10 @@ const jsonLd = graph(websiteSchema(), personSchema(), ...schema);
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
-    <Header />
+    <Header minimal={minimalHeader} />
     <main id="main">
       <slot />
     </main>
-    <Footer />
+    {footer && <Footer />}
   </body>
 </html>

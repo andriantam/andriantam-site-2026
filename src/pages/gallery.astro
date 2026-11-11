@@ -1,0 +1,118 @@
+---
+// Gallery: personal photography. No clients, no briefs, no testimonials. Albums land here when their Flickr
+// description includes a personal category (personal, travel, astro, landscape, street, film).
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/PageHero.astro";
+import FlickrImg from "../components/FlickrImg.astro";
+import { getAlbums, CATEGORY_LABELS, isPassion } from "../lib/flickr";
+import { breadcrumbSchema } from "../lib/schema";
+import { SITE } from "../config/site";
+import header from "../assets/photos/mountains.jpg";
+
+const albums = (await getAlbums()).filter(isPassion);
+const crumbs = [
+  { name: "Home", path: "/" },
+  { name: "Gallery", path: "/gallery" },
+];
+---
+
+<Base
+  title="Gallery: personal photography"
+  description="Personal photography by Andrian Tam: travel, mountains, night skies and film. Shot for the love of it, with no client and no brief."
+  schema={[breadcrumbSchema(crumbs)]}
+>
+  <PageHero
+    image={header}
+    eyebrow="Gallery"
+    title="Shot for the love of it"
+    intro="This is the photography nobody asked for: travel, mountains, night skies and film. No client, no brief. It is where the hobby went when I took it back."
+    crumbs={crumbs}
+  />
+
+  <section class="wrap body">
+    <ul class="albums">
+      {
+        albums.map((a) =>
+          a.cover ? (
+            <li class="album">
+              <a href={`/portfolio/${a.slug}`}>
+                <FlickrImg photo={a.cover} alt={`${a.title}, photographed by andriantam`} sizes="(min-width: 900px) 50vw, 100vw" />
+                <span class="meta">
+                  <span class="cat">{a.categories.map((c) => CATEGORY_LABELS[c] ?? c).join(" · ")}</span>
+                  <span class="title">{a.title}</span>
+                  <span class="count">{a.count} photos</span>
+                </span>
+              </a>
+            </li>
+          ) : null,
+        )
+      }
+    </ul>
+    <p class="more">
+      Most of the personal work is on Instagram for now: the Milky Way, Tibet and Everest, Bhutan and the long drives.
+      <a href={SITE.social.instagram} target="_blank" rel="me noopener">Follow @andriantam ↗</a>
+    </p>
+    <p class="more">Looking for client work? That's the <a href="/portfolio">portfolio</a>.</p>
+  </section>
+</Base>
+
+<style>
+  .body {
+    padding-block: 2.5rem 5rem;
+  }
+  .albums {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
+    gap: 1rem;
+  }
+  .album a {
+    position: relative;
+    display: block;
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    border-radius: var(--radius);
+    text-decoration: none;
+    background: var(--ink-2);
+  }
+  .album :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.8s var(--ease);
+  }
+  .album a:hover :global(img) {
+    transform: scale(1.04);
+  }
+  .meta {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 3rem 1rem 0.9rem;
+    background: linear-gradient(to top, rgba(11, 10, 14, 0.92), transparent);
+    display: grid;
+    gap: 0.1rem;
+  }
+  .cat {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .title {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+  .count {
+    font-size: 0.82rem;
+    color: var(--text-2);
+  }
+  .more {
+    color: var(--text-2);
+    max-width: 60ch;
+  }
+</style>

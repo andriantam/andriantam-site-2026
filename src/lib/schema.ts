@@ -77,28 +77,6 @@ export function websiteSchema() {
   };
 }
 
-export function serviceBusinessSchema(services: { title: string; body: string }[]) {
-  return {
-    "@type": "ProfessionalService",
-    "@id": abs("/#business"),
-    name: `${SITE.name} Photography and Videography`,
-    url: SITE.url,
-    image: abs("/og/default.jpg"),
-    founder: { "@id": PERSON_ID },
-    areaServed: { "@type": "Country", name: SITE.location.country },
-    address: { "@type": "PostalAddress", addressLocality: SITE.location.city, addressCountry: SITE.location.countryCode },
-    email: SITE.email,
-    hasOfferCatalog: {
-      "@type": "OfferCatalog",
-      name: "Services",
-      itemListElement: services.map((s) => ({
-        "@type": "Offer",
-        itemOffered: { "@type": "Service", name: s.title, description: s.body },
-      })),
-    },
-  };
-}
-
 export function breadcrumbSchema(items: { name: string; path: string }[]) {
   return {
     "@type": "BreadcrumbList",

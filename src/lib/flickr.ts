@@ -34,7 +34,15 @@ export const CATEGORY_LABELS: Record<string, string> = {
   food: "Food and beverage",
   personal: "Personal",
   travel: "Travel",
+  astro: "Night sky",
+  landscape: "Landscape",
+  street: "Street",
+  film: "Film",
 };
+
+// Albums with any of these categories are personal work: they show in /gallery, not in the portfolio.
+export const PASSION_CATEGORIES = ["personal", "travel", "astro", "landscape", "street", "film"];
+export const isPassion = (a: { categories: string[] }) => a.categories.some((c) => PASSION_CATEGORIES.includes(c));
 
 // Flickr size suffixes. Free accounts expose up to 1024px through the API.
 export const SIZES = [

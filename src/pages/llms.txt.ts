@@ -15,9 +15,11 @@ export const GET: APIRoute = async () => {
 
 ${SITE.name} (${SITE.person}) is based in ${SITE.location.city}. Contact: ${SITE.email}.
 
-${SITE.name} no longer takes photography commissions. Photography is a personal passion again; he is happy to meet for a coffee to talk photography or share his experience.
+"${SITE.tagline}"
 
-## Photography he used to offer
+${SITE.availability}
+
+## Photography and video work
 
 ${SERVICES.filter((s) => s.title !== "Tech consulting").map((s) => `- **${s.title}**: ${s.body}`).join("\n")}
 
@@ -33,9 +35,10 @@ ${FAQ.map((f) => `### ${f.q}\n${f.a}`).join("\n\n")}
 
 ## Key pages
 
-- [Home](${u("/")}): his story, from photography in school to software engineering, McKinsey, his own businesses and Head of Brand, plus contact
-- [Photography](${u("/photography")}): what he shot, selected work, clients and testimonials
-- [Portfolio](${u("/portfolio")}): ${albums.length} photo albums plus videography
+- [Home](${u("/")}): his story as a night drive up a mountain pass, from a first camera to software engineering, McKinsey, his own brand and Head of Brand, ending at the atlas
+- [Atlas](${u("/atlas")}): every skill, role, project and place, and how they connect
+- [Portfolio](${u("/portfolio")}): client work, clients and testimonials; ${albums.length} photo albums plus videography
+- [Gallery](${u("/gallery")}): personal photography, with no clients or briefs
 - [Videography](${u("/portfolio/videography")})
 - [Resume](${u("/resume")})
 - [Articles](${u("/articles")})

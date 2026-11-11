@@ -1,0 +1,93 @@
+---
+// The atlas as a list: the same tree as the sky on the home page.
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { NODES, CLUSTERS, childrenOf } from "../../data/graph";
+const top = NODES.filter((n) => !n.parent);
+const color = (id: string) => CLUSTERS.find((c) => c.id === id)!.color;
+import { breadcrumbSchema } from "../../lib/schema";
+const crumbs = [
+  { name: "Home", path: "/" },
+  { name: "Atlas", path: "/atlas" },
+];
+---
+
+<Base title="Atlas" description="Everything Andrian Tam does and has built, and where: software engineering, brand building, photography, and the passion that ties them together." schema={[breadcrumbSchema(crumbs)]}>
+  <PageHero eyebrow="Atlas" title="How it all connects" intro="Four disciplines and where they started, the places I did the work, and what I did there. On the home page this is a sky you can explore." compact crumbs={crumbs} />
+  <section class="wrap cols">
+    {
+      top.map((t) => (
+        <div style={`--c:${color(t.cluster)}`}>
+          <h2><a href={`/atlas/${t.id}`}>{t.label}</a></h2>
+          {t.when && <p>{t.when}</p>}
+          <ul>
+            {childrenOf(t.id).map((p) => (
+              <li>
+                <a href={`/atlas/${p.id}`}>{p.label}</a>
+                {childrenOf(p.id).length > 0 && (
+                  <ul class="sub">
+                    {childrenOf(p.id).map((w) => (
+                      <li>
+                        <a href={`/atlas/${w.id}`}>{w.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </section>
+</Base>
+
+<style>
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem 2.5rem;
+    padding-block: 2.5rem 5rem;
+  }
+  h2 {
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--c);
+    margin: 0 0 0.3rem;
+  }
+  p {
+    font-size: 0.9rem;
+    color: var(--text-3);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  li {
+    border-top: 1px solid var(--line);
+  }
+  a {
+    display: block;
+    padding: 0.55rem 0;
+    text-decoration: none;
+  }
+  h2 a {
+    display: inline;
+    padding: 0;
+    color: inherit;
+  }
+  .sub {
+    margin: -0.2rem 0 0.4rem 0.9rem;
+  }
+  .sub li {
+    border-top: 0;
+  }
+  .sub a {
+    padding: 0.2rem 0;
+    font-size: 0.9rem;
+    color: var(--text-2);
+  }
+</style>

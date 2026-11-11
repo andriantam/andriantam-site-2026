@@ -91,7 +91,7 @@ export const RESUME = {
       title: "Full-stack Web Developer",
       tags: [] as string[],
       points: [
-        "Raised engineering standards by introducing MVC frameworks (Laravel) on new client websites.",
+        "Raised software engineering standards by introducing MVC frameworks (Laravel) on new client websites.",
         "Developed and maintained client websites (HTML, CSS, JavaScript, PHP, SQL).",
         "Troubleshot, debugged and upgraded existing applications; redesigned maintenance flows to improve the process and reduce errors.",
         "Built an Arduino-based infrared trigger as a human-computer interaction (HCI) interface for an on-ground installation.",
@@ -125,7 +125,7 @@ export const RESUME = {
     },
   ],
   skills: [
-    { group: "Engineering", items: ["JavaScript", "Python", "C#/.NET", "PHP", "SQL", "React", "Angular", "Next.js", "NestJS", "Node.js", "Laravel", "API and third-party integration", "AWS S3"] },
+    { group: "Software engineering", items: ["JavaScript", "Python", "C#/.NET", "PHP", "SQL", "React", "Angular", "Next.js", "NestJS", "Node.js", "Laravel", "API and third-party integration", "AWS S3"] },
     { group: "AI and data", items: ["Google AI Studio (API use, vibe coding)", "LLM chatbots in Python", "Prompt engineering", "Content and image generation", "Customer data platforms"] },
     { group: "Delivery and leadership", items: ["Agile and Scrum (CSM)", "Team leadership and coaching", "Technical documentation", "Usability testing", "Quality assurance"] },
     { group: "Brand and growth", items: ["Digital marketing", "Brand building", "JV brokering", "Ads and campaigns", "Photography", "Videography"] },

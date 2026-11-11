@@ -1,0 +1,1338 @@
+---
+// The home page. It opens on the night sky: my name at the centre, every star around it something I do. Scrolling brings the camera
+// down to the car and the story becomes a drive up a mountain pass, ending with a handbrake turn in a car park
+// and the contact details. The 3D scene sits behind ordinary HTML: every word here is in the page before any 3D
+// loads, and the page still reads without it.
+import { Image } from "astro:assets";
+import { SITE } from "../config/site";
+import Footer from "./Footer.astro";
+import Loader from "./Loader.astro";
+import mountains from "../assets/photos/mountains.jpg";
+import portfolio from "../assets/photos/portfolio-header.jpg";
+import laptop from "../assets/photos/laptop.jpg";
+import mckTeam from "../assets/photos/mckinsey-team.jpg";
+import automotive from "../assets/photos/automotive-header.jpg";
+import walking from "../assets/photos/hero-bg.jpg";
+import me from "../assets/photos/me.jpg";
+import "@fontsource/russo-one/latin-400.css";
+import { CLUSTERS, NODES, EDGES, KIND_LABELS, related, depth } from "../data/graph";
+
+const CHAPTERS = [
+  {
+    id: "camera",
+    year: "2010",
+    eyebrow: "2010 · High school",
+    title: ["It started with a ", "camera."],
+    body: "I spent hours in bookshops studying how each photo was made, and shot on borrowed DSLRs until my brother bought me my first: a Canon 500D.",
+  },
+  {
+    id: "uni",
+    year: "2012",
+    eyebrow: "2012 to 2015 · University",
+    title: ["I learned how people ", "see."],
+    body: "Cognitive Science at UNIMAS: AI, neural networks and perception. Between lectures I photographed everything.",
+  },
+  {
+    id: "agency",
+    year: "2015",
+    eyebrow: "2015 to 2017 · Ad agency",
+    title: ["Then I built what people ", "touch."],
+    body: "A software engineer who fell for UI/UX. At Isobar I built interactive campaigns, one of which won three Silvers.",
+  },
+  {
+    id: "mckinsey",
+    year: "2018",
+    eyebrow: "2018 to 2024 · McKinsey & Company",
+    title: ["The stakes got ", "serious."],
+    body: "Six years building for banks and industry. I led 15 engineers on a bank's app that launched as the lockdown hit.",
+  },
+  {
+    id: "toge",
+    year: "2024",
+    eyebrow: "2024 · Toge",
+    title: ["The hobby became the ", "business."],
+    body: "Official media for Autoshow Malaysia, Super GT Sepang and Tokyo Auto Salon KL. But when every frame was for money, the creativity went. So I made photography a passion again.",
+  },
+  {
+    id: "brand",
+    year: "2026",
+    eyebrow: "2025 to now · Back in a team",
+    title: ["Still hands-on, still ", "building."],
+    body: "Head of Brand at TROOPERS Singapore, and I build the tech behind it: a customer data platform, and AI video editing that turned three days into three hours.",
+  },
+];
+// The picture story, used when the 3D can't run: one photo per chapter, then contact. They stay unloaded
+// (display: none) unless it's needed.
+const SLIDES = [
+  { src: mountains, pos: "50% 50%" },
+  { src: portfolio, pos: "50% 50%" },
+  { src: laptop, pos: "50% 50%" },
+  { src: mckTeam, pos: "28% 62%" },
+  { src: automotive, pos: "50% 50%" },
+  { src: walking, pos: "40% 40%" },
+  { src: me, pos: "50% 10%" },
+];
+// The ticker down the right-hand side: the sky, one stop per chapter, then contact.
+const STOPS = ["Sky", ...CHAPTERS.map((c) => c.year), "Contact"];
+
+const passData = {
+  nodes: NODES.map((n) => ({ id: n.id, label: n.label, cluster: n.cluster, hub: !!n.hub, parent: n.parent ?? null, level: depth(n) })),
+  edges: EDGES,
+  clusters: CLUSTERS.map((c) => ({ id: c.id, color: c.color })),
+  years: CHAPTERS.map((c) => c.year),
+};
+const cards = Object.fromEntries(
+  NODES.map((n) => [
+    n.id,
+    {
+      label: n.label,
+      meta: [CLUSTERS.find((c) => c.id === n.cluster)!.label, KIND_LABELS[n.kind], n.when].filter(Boolean).join(" · "),
+      blurb: n.blurb,
+      color: CLUSTERS.find((c) => c.id === n.cluster)!.color,
+      tags: n.tags ?? [],
+      related: related(n.id).map((r) => ({ id: r.id, label: r.label })),
+    },
+  ]),
+);
+---
+
+<Loader />
+<section class="pass" data-pass aria-label="My story">
+  <div class="view">
+    <picture aria-hidden="true">
+      <source srcset="/media/hero-poster-540.webp" media="(orientation: portrait)" width="540" height="960" />
+      <img class="still" src="/media/hero-poster-1280.webp" alt="" width="1280" height="720" fetchpriority="high" decoding="async" />
+    </picture>
+    <div class="slides" aria-hidden="true">
+      {
+        SLIDES.map((s, i) => (
+          <div class="slide" data-slide={i + 1}>
+            <Image src={s.src} alt="" widths={[640, 1280, 1920]} sizes="100vw" loading="lazy" format="avif" style={`object-position:${s.pos}`} />
+          </div>
+        ))
+      }
+    </div>
+    <canvas data-canvas aria-hidden="true"></canvas>
+    <div class="tint" aria-hidden="true"></div>
+    <div class="labels" data-labels aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="race" data-race aria-live="polite">
+      <p class="race-clock" data-race-clock></p>
+      <p class="race-gates" data-race-gates></p>
+      <p class="race-flash" data-race-flash></p>
+      <p class="race-note" data-race-note></p>
+      <p class="race-again" data-race-again></p>
+    </div>
+    <p class="gauge" aria-hidden="true"><b data-kmh>0</b><span>km/h</span><i data-gear>1</i><em data-sound></em></p>
+    <p class="drive-hint" aria-live="polite">W A S D to drive · Space for the handbrake · C to change camera · M for sound · Esc to stop</p>
+    <nav class="rail" aria-label="Progress">
+      <ol>
+        {
+          STOPS.map((s, i) => (
+            <li>
+              <button type="button" data-stop={i} aria-label={s}>
+                <span>{s}</span>
+              </button>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+  </div>
+
+  <div class="flow">
+    <!-- The sky: the name at the centre of the map, the stars around it -->
+    <header class="ch sky" id="atlas" data-ch data-sky>
+      <i class="snap" aria-hidden="true"></i>
+      <h1 class="me" data-center>
+        <img class="wordmark" src="/wordmark.png" alt="andriantam" width="2400" height="196" />
+        <span class="who">{SITE.person} · {SITE.roles.join(" · ")}</span>
+      </h1>
+      <aside class="card" data-card hidden aria-live="polite">
+        <button type="button" class="close" data-card-close aria-label="Close">✕</button>
+        <p class="meta" data-card-meta></p>
+        <h3 data-card-title></h3>
+        <p class="blurb" data-card-blurb></p>
+        <p class="tags" data-card-tags></p>
+        <div class="rel" data-card-rel></div>
+        <a class="btn btn-primary" data-card-link href="/atlas">Open its page →</a>
+      </aside>
+      <p class="hint">
+        <span class="three-only"><span class="touch-only">Tap a star · Drag to look around</span><span class="mouse-only">Move to look around · Click a star</span> · </span><a href="/atlas">See it as a list</a>
+        <span class="go" aria-hidden="true"><span class="touch-only">Swipe up</span><span class="mouse-only">Scroll</span><span class="three-only"> to start the drive</span><span class="slides-only"> for my story</span><i></i></span>
+      </p>
+    </header>
+
+    {
+      CHAPTERS.map((c, i) => (
+        <article class="ch story" data-ch aria-labelledby={`ch-${c.id}`}>
+          <i class="snap" aria-hidden="true" />
+          <div class="copy wrap">
+            <div class="text">
+              <p class="eyebrow">
+                <span class="n">{String(i + 1).padStart(2, "0")}</span>
+                {c.eyebrow}
+              </p>
+              <h2 id={`ch-${c.id}`}>
+                {c.title[0]}
+                <em>{c.title[1]}</em>
+              </h2>
+              <p class="lede">{c.body}</p>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+
+    <!-- The car park: contact -->
+    <section class="ch finale" id="contact" data-ch aria-labelledby="contact-title">
+      <i class="snap" aria-hidden="true"></i>
+      <div class="copy wrap">
+        <div class="text">
+          <p class="eyebrow">Contact</p>
+          <h2 id="contact-title">Let's make <em>something.</em></h2>
+          <p class="lede">I'm not taking regular photography jobs for now. If it's creative, or it's brand or tech, I'm in. Coffee's on me.</p>
+          <p class="actions">
+            <a class="btn btn-primary" href={`mailto:${SITE.email}?subject=Coffee%3F`}>Email me</a>
+            <a class="btn" href={SITE.social.linkedin} target="_blank" rel="me noopener">LinkedIn</a>
+            <a class="btn" href={SITE.social.instagram} target="_blank" rel="me noopener">Instagram</a>
+          </p>
+          <p class="more">
+            <a href="/portfolio">Portfolio</a>
+            <a href="/gallery">Gallery</a>
+            <a href="/play">Play</a>
+            <a href="/articles">Articles</a>
+            <a href="/resume">Resume</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- The footer scrolls up over the scene, so the car stays in view to the very end -->
+    <div class="foot">
+      <i class="snap end" aria-hidden="true"></i>
+      <Footer overlay />
+    </div>
+  </div>
+</section>
+
+<script type="application/json" id="pass-data" set:html={JSON.stringify(passData)} />
+<script type="application/json" id="pass-cards" set:html={JSON.stringify(cards)} />
+
+<style>
+  .pass {
+    position: relative;
+    --tint: 1;
+    background: radial-gradient(120% 80% at 50% 100%, #141d33 0%, #070912 60%, #04050a 100%);
+  }
+  .view {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+  }
+  .view .still,
+  .view canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .view .still {
+    object-fit: cover;
+    opacity: 0.55;
+  }
+  .view canvas {
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  .view canvas[data-ready] {
+    opacity: 1;
+  }
+  /* The picture story (when the 3D can't run): one photo per chapter, crossfading as you scroll, each
+     drifting slowly closer while it's on screen. */
+  .slides {
+    display: none;
+  }
+  .pass[data-fallback] .slides {
+    display: block;
+    position: absolute;
+    inset: 0;
+  }
+  .pass:not([data-fallback]) .slides-only {
+    display: none;
+  }
+  .pass[data-fallback] canvas,
+  .pass[data-fallback] .labels {
+    display: none;
+  }
+  .slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1s var(--ease);
+  }
+  .slide::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to bottom, rgba(4, 5, 10, 0.55), rgba(4, 5, 10, 0.15) 30%, rgba(4, 5, 10, 0.25) 70%, rgba(4, 5, 10, 0.75)),
+      radial-gradient(130% 90% at 50% 45%, transparent 50%, rgba(4, 5, 10, 0.55));
+  }
+  .slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.02);
+    transition: transform 9s linear;
+  }
+  .slide.on {
+    opacity: 1;
+  }
+  .slide.on img {
+    transform: scale(1.1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .slide img,
+    .slide.on img {
+      transform: none;
+      transition: none;
+    }
+  }
+  /* The opening frame is tinted; the tint lifts as you start to scroll. */
+  .tint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: calc(var(--tint) * 0.55);
+    background:
+      radial-gradient(90% 70% at 50% 46%, rgba(232, 162, 90, 0.16), transparent 70%),
+      linear-gradient(160deg, rgba(34, 44, 96, 0.72), rgba(10, 8, 26, 0.78) 55%, rgba(60, 26, 20, 0.6));
+  }
+  .vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(to bottom, rgba(4, 5, 10, 0.5), transparent 20%),
+      radial-gradient(130% 90% at 50% 45%, transparent 55%, rgba(4, 5, 10, 0.6) 100%);
+  }
+  .labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .labels :global(.lab) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    text-shadow: 0 1px 6px #000, 0 0 2px #000;
+    transition: opacity 0.35s ease;
+    will-change: transform;
+  }
+  .labels :global(.lab.hub) {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c);
+  }
+  .labels :global(.lab.l3) {
+    font-size: 0.68rem;
+    color: var(--text-2);
+  }
+  .labels :global(.lab.sel) {
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* The ticker: a column of short lines on the right. The current one is longer and shows its label. */
+  .rail {
+    position: absolute;
+    right: max(0.5rem, env(safe-area-inset-right));
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rail button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    width: 100%;
+    height: 22px;
+    padding: 0 0.4rem;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .rail button span {
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-shadow: 0 1px 6px #000;
+  }
+  .rail button::after {
+    content: "";
+    width: 12px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+    transition:
+      width 0.3s var(--ease),
+      opacity 0.3s;
+  }
+  .rail button:hover span,
+  .rail button:focus-visible span,
+  .rail button[aria-current] span {
+    opacity: 1;
+  }
+  .rail button[aria-current] {
+    color: var(--gold);
+  }
+  .rail button[aria-current]::after {
+    width: 26px;
+    opacity: 1;
+  }
+
+  .flow {
+    position: relative;
+    margin-top: -100svh;
+    overflow-x: clip; /* the dark patches behind chapter text reach past the screen edge on phones */
+  }
+  /* Scrolling rests on each section and never skips one. On touch screens that is the browser's own
+     scroll snapping: each section carries a screen-sized marker at its middle, and the footer's marker sits
+     at the very end. With a mouse or trackpad, the script below steps one section per scroll instead. */
+  @media (hover: none) {
+    :global(html:has(.pass)) {
+      scroll-snap-type: y mandatory;
+    }
+  }
+  .snap {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1px;
+    height: 100svh;
+    transform: translateY(-50%);
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    pointer-events: none;
+  }
+  .snap.end {
+    top: auto;
+    bottom: 0;
+    transform: none;
+    scroll-snap-align: end;
+  }
+  .ch {
+    position: relative;
+    min-height: 135svh;
+    display: grid;
+    align-items: center;
+    padding-block: 18svh;
+  }
+  .ch .text {
+    max-width: 30rem;
+    padding: 1.4rem 0;
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 0.7s var(--ease),
+      transform 0.9s var(--ease);
+  }
+  .ch.on .text {
+    opacity: 1;
+    transform: none;
+  }
+  .story:nth-of-type(even) .text {
+    margin-left: auto;
+    margin-right: 2.5rem;
+  }
+  /* A soft dark patch behind chapter text, so it reads over a lit road */
+  .story .text {
+    position: relative;
+    isolation: isolate;
+  }
+  .story .text::before {
+    content: "";
+    position: absolute;
+    inset: -3rem -4rem;
+    z-index: -1;
+    background: radial-gradient(closest-side, rgba(4, 5, 10, 0.9), rgba(4, 5, 10, 0.72) 62%, transparent);
+    pointer-events: none;
+  }
+  /* Contact waits for the car to stop */
+  .ch.finale .text {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  .ch.finale.ready .text {
+    opacity: 1;
+    transform: none;
+  }
+  .ch h2,
+  .ch .lede,
+  .ch .eyebrow,
+  .hint {
+    text-shadow:
+      0 2px 18px rgba(3, 4, 9, 0.95),
+      0 0 3px rgba(3, 4, 9, 0.8);
+  }
+  .eyebrow .n {
+    color: var(--text);
+    opacity: 0.6;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5.2vw, 3.9rem);
+    line-height: 1.03;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+  }
+  h2 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .ch .lede {
+    color: var(--text);
+    font-size: clamp(1rem, 1.4vw, 1.12rem);
+  }
+
+  /* The sky */
+  .ch.sky {
+    display: block;
+    min-height: 100svh;
+    height: 100svh;
+    padding-block: 0;
+    position: relative;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* The name sits on the centre star. The scene moves it; without 3D it rests in the middle. */
+  .me {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    width: 0;
+    height: 0;
+    transform: translate(50vw, 44svh);
+    pointer-events: none;
+    will-change: transform;
+  }
+  .me .wordmark {
+    position: absolute;
+    left: 0;
+    top: 1.5rem;
+    width: min(62vw, 21rem);
+    max-width: none;
+    height: auto;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 2px 14px rgba(3, 4, 9, 0.95));
+  }
+  .me .who {
+    position: absolute;
+    left: 0;
+    top: calc(1.5rem + min(62vw, 21rem) * 0.082 + 0.85rem);
+    width: max-content;
+    max-width: 86vw;
+    transform: translateX(-50%);
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    line-height: 1.5;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow:
+      0 2px 14px rgba(3, 4, 9, 0.95),
+      0 0 3px rgba(3, 4, 9, 0.8);
+  }
+  .hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: max(1.2rem, env(safe-area-inset-bottom));
+    margin: 0;
+    padding-inline: var(--gutter);
+    text-align: center;
+    font-size: 0.74rem;
+    color: var(--text-2);
+  }
+  .hint .go {
+    display: block;
+    margin-top: 0.7rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .hint i {
+    display: block;
+    width: 1px;
+    height: 26px;
+    margin: 0.5rem auto 0;
+    background: linear-gradient(var(--gold), transparent);
+    animation: drop 2s var(--ease) infinite;
+  }
+  @keyframes drop {
+    0% {
+      transform: scaleY(0);
+      transform-origin: top;
+    }
+    60% {
+      transform: scaleY(1);
+      transform-origin: top;
+    }
+    100% {
+      transform: scaleY(1);
+      opacity: 0;
+    }
+  }
+  .touch-only {
+    display: none;
+  }
+  @media (hover: none) {
+    .touch-only {
+      display: inline;
+    }
+    .mouse-only {
+      display: none;
+    }
+  }
+  .pass:not([data-three]) .three-only {
+    display: none;
+  }
+  .sky:has(.card:not([hidden])) .hint {
+    display: none;
+  }
+  .card {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    max-width: 30rem;
+    margin-inline: auto;
+    padding: 1.1rem 1.2rem 1.2rem;
+    background: rgba(10, 12, 20, 0.86);
+    border: 1px solid var(--line-strong);
+    border-top: 2px solid var(--c, var(--gold));
+    border-radius: var(--radius);
+    backdrop-filter: blur(14px);
+    user-select: text;
+    -webkit-user-select: text;
+    animation: rise 0.35s var(--ease);
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
+  .card[hidden] {
+    display: none;
+  }
+  .card .meta {
+    margin: 0 2rem 0.2rem 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c, var(--gold));
+  }
+  .card h3 {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+  }
+  .card .blurb {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--text-2);
+    margin: 0 0 0.8rem;
+  }
+  .card .tags {
+    margin: -0.3rem 0 0.8rem;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+    color: var(--c, var(--gold));
+    opacity: 0.85;
+  }
+  .card .tags[hidden] {
+    display: none;
+  }
+  .card .rel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.9rem;
+  }
+  .card .rel :global(button) {
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--text);
+    background: rgba(243, 237, 228, 0.07);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    min-height: 32px;
+    cursor: pointer;
+  }
+  .card .rel :global(button:hover) {
+    border-color: var(--line-strong);
+  }
+  .card .close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+    color: var(--text-2);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .card .btn {
+    font-size: 0.85rem;
+    padding: 0.55rem 1rem;
+  }
+  @media (min-width: 900px) {
+    .card {
+      left: auto;
+      right: clamp(3rem, 6vw, 5rem);
+      bottom: clamp(1.5rem, 8svh, 4rem);
+      margin: 0;
+      width: 26rem;
+    }
+  }
+
+  /* Contact: the text sits in the sky, the car stays at the bottom of the frame */
+  .ch.finale {
+    min-height: 100svh;
+    align-items: start;
+    padding-block: clamp(5rem, 14svh, 8rem) 0;
+    text-align: center;
+  }
+  .finale .text {
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+  .finale .eyebrow {
+    justify-content: center;
+  }
+  .finale .lede {
+    margin-inline: auto;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 1.4rem 0 1.2rem;
+  }
+  .more {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem 1.3rem;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .more a {
+    color: var(--text-2);
+    text-shadow: 0 1px 8px #000;
+  }
+
+  /* Footer: a long way below the contact text, see-through, over the same scene */
+  /* The hidden drive mode: the page steps aside and only the car and the road are left */
+  .flow,
+  .rail {
+    transition: opacity 0.6s var(--ease);
+  }
+  .pass.driving .flow,
+  .pass.driving .rail {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .drive-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: max(1.4rem, env(safe-area-inset-bottom));
+    margin: 0;
+    text-align: center;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    text-shadow: 0 1px 8px #000;
+    opacity: 0;
+    transition: opacity 0.6s var(--ease);
+    pointer-events: none;
+  }
+  .pass.driving .drive-hint {
+    opacity: 1;
+  }
+  /* Speed and gear while driving, in the race face */
+  .gauge {
+    position: absolute;
+    right: max(1.4rem, env(safe-area-inset-right));
+    bottom: max(3.2rem, env(safe-area-inset-bottom));
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    column-gap: 0.45rem;
+    font-family: "Russo One", var(--font-display);
+    color: var(--text);
+    transform: skewX(-12deg);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    transition: opacity 0.6s var(--ease);
+    pointer-events: none;
+  }
+  .pass.driving .gauge {
+    opacity: 1;
+  }
+  .gauge b {
+    font-weight: 400;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    min-width: 3ch;
+    text-align: right;
+  }
+  .gauge span {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .gauge i {
+    grid-column: 1 / -1;
+    justify-self: end;
+    font-style: normal;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+  }
+  .gauge em {
+    grid-column: 1 / -1;
+    justify-self: end;
+    margin-top: 0.15rem;
+    font-style: normal;
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    transform: skewX(12deg);
+  }
+  .gauge em.warn {
+    color: #ff8a73;
+  }
+  .gauge i::before {
+    content: "Gear ";
+    color: var(--text-2);
+    font-size: 0.68rem;
+  }
+  /* The hidden time attack */
+  /* The hidden time attack. Type in the spirit of The Fast Type (Fox Sports Malaysia, 2017): a heavy, squared
+     racing face, leaning forward, with speed streaks trailing behind it. */
+  .race {
+    --race: "Russo One", var(--font-display);
+    position: absolute;
+    inset: 0;
+    overflow: hidden; /* the "FAILED" banner slides in from the side; it mustn't widen the page on phones */
+    pointer-events: none;
+    text-align: center;
+    font-family: var(--race);
+  }
+  .race-clock,
+  .race-flash {
+    font-style: normal;
+    transform: skewX(-12deg);
+    /* streaks: the same glyphs, fainter and further behind */
+    text-shadow:
+      -0.08em 0 0 color-mix(in srgb, currentColor 34%, transparent),
+      -0.2em 0 0.03em color-mix(in srgb, currentColor 18%, transparent),
+      -0.38em 0 0.08em color-mix(in srgb, currentColor 8%, transparent),
+      0 3px 18px rgba(0, 0, 0, 0.85);
+  }
+  .race-clock {
+    margin: 0;
+    padding-top: clamp(1.4rem, 5svh, 2.6rem);
+    font-size: clamp(2.4rem, 5.5vw, 3.8rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .race-clock.low {
+    color: #ff6b57;
+    animation: pulse 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes pulse {
+    to {
+      opacity: 0.55;
+    }
+  }
+  .race-gates {
+    margin: 0.2rem 0 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    text-shadow: 0 1px 8px #000;
+  }
+  .race-flash {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 36%;
+    margin: 0;
+    font-size: clamp(3.2rem, 11vw, 7.5rem);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: skewX(-12deg) translateX(18%);
+    filter: blur(6px);
+    transition:
+      opacity 0.18s ease,
+      transform 0.38s cubic-bezier(0.15, 0.9, 0.2, 1),
+      filter 0.3s ease;
+  }
+  .race-flash.on {
+    opacity: 1;
+    transform: skewX(-12deg);
+    filter: none;
+  }
+  .race-flash.go {
+    color: #4ade80;
+  }
+  .race-flash.plus {
+    font-size: clamp(1.8rem, 4.5vw, 3rem);
+    color: #ffd27a;
+    top: 21%;
+  }
+  .race-flash.fail {
+    color: #ff5a4a;
+  }
+  .race-flash.done {
+    color: var(--gold);
+  }
+  .race-note,
+  .race-again {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    top: calc(36% + clamp(3.2rem, 11vw, 7.5rem) * 1.3);
+    margin: 0;
+    font-size: clamp(1rem, 2.2vw, 1.4rem);
+    letter-spacing: 0.06em;
+    color: var(--text);
+    transform: skewX(-12deg);
+    text-shadow: 0 2px 12px #000;
+  }
+  .race-note :global(b) {
+    display: block;
+    margin-top: 0.15em;
+    font-weight: 400;
+    font-size: 2.3em;
+    line-height: 1.05;
+    color: var(--gold);
+  }
+  .race-again {
+    top: calc(36% + clamp(3.2rem, 11vw, 7.5rem) * 1.3 + clamp(5rem, 9vw, 6.4rem));
+    font-size: 0.75rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .foot {
+    margin-top: 55svh;
+    position: relative;
+  }
+
+  @media (max-width: 700px) {
+    .ch.story {
+      align-items: end;
+      min-height: 125svh;
+      padding-block: 14svh 9svh;
+    }
+    .ch .text {
+      max-width: none;
+    }
+    .story:nth-of-type(even) .text {
+      margin-right: 0;
+    }
+    .story .copy {
+      padding-right: 2.4rem; /* clear of the ticker */
+    }
+    .rail button span {
+      display: none;
+    }
+    .me .wordmark {
+      width: 50vw;
+    }
+    .me .who {
+      top: calc(1.5rem + 50vw * 0.082 + 0.7rem);
+      font-size: 0.6rem;
+    }
+    .labels :global(.lab) {
+      font-size: 0.64rem;
+    }
+    .labels :global(.lab.hub) {
+      font-size: 0.66rem;
+      letter-spacing: 0.12em;
+    }
+    .card .blurb {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card .rel {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin-inline: -1.2rem;
+      padding-inline: 1.2rem;
+      scrollbar-width: none;
+    }
+    .card .rel :global(button) {
+      flex: none;
+    }
+    .vignette {
+      background:
+        linear-gradient(to bottom, rgba(4, 5, 10, 0.5), transparent 20%),
+        linear-gradient(to top, rgba(4, 5, 10, 0.8), transparent 50%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ch .text {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .hint i {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  import type { PassApi } from "../scripts/pass/scene";
+
+  const root = document.querySelector<HTMLElement>("[data-pass]");
+  if (root) {
+    const chapters = [...root.querySelectorAll<HTMLElement>("[data-ch]")];
+    const view = root.querySelector<HTMLElement>(".view")!;
+    const stops = [...root.querySelectorAll<HTMLButtonElement>("[data-stop]")];
+    const data = JSON.parse(document.getElementById("pass-data")!.textContent!);
+    const cards = JSON.parse(document.getElementById("pass-cards")!.textContent!);
+    let api: PassApi | null = null;
+    const slides = [...root.querySelectorAll<HTMLElement>("[data-slide]")];
+    let fallback = false;
+
+    // Chapter text fades in as it arrives.
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle("on", e.isIntersecting)), {
+      rootMargin: "-22% 0px -22% 0px",
+    });
+    chapters.forEach((c) => io.observe(c));
+
+    // Progress: which section the middle of the screen is on, as a fraction (0 = title, last = contact).
+    let centers: number[] = [];
+    const measure = () => {
+      centers = chapters.map((c) => c.getBoundingClientRect().top + scrollY + c.offsetHeight / 2);
+    };
+    const progress = () => {
+      const y = scrollY + innerHeight / 2;
+      if (y <= centers[0]) return 0;
+      for (let i = 1; i < centers.length; i++) {
+        if (y < centers[i]) return i - 1 + (y - centers[i - 1]) / (centers[i] - centers[i - 1]);
+      }
+      return centers.length - 1;
+    };
+    // Ticker stops: 0 is the sky (both sky pages), then one per chapter, then contact.
+    const finale = root.querySelector<HTMLElement>(".finale")!;
+    const stopOf = (f: number) => Math.max(0, Math.min(stops.length - 1, Math.round(f)));
+    let current = -1;
+    const update = () => {
+      const f = progress();
+      api?.setProgress(f);
+      root.style.setProperty("--tint", String(Math.max(0, 1 - f / 0.55).toFixed(3)));
+      document.documentElement.classList.toggle("at-sky", f < 0.45);
+      grow();
+      finale.classList.toggle("ready", f > centers.length - 1.22 || !api);
+      const s = stopOf(f);
+      if (fallback) slides.forEach((el, i) => el.classList.toggle("on", i + 1 === s));
+      if (s !== current) {
+        current = s;
+        stops.forEach((b, i) => (i === s ? b.setAttribute("aria-current", "step") : b.removeAttribute("aria-current")));
+      }
+    };
+    // The header's wordmark grows out of the corner into the middle of the sky as you scroll from contact
+    // to the footer, following the scroll both ways.
+    const brand = document.querySelector<HTMLElement>(".site-header .brand");
+    let home: DOMRect | null = null;
+    const grow = () => {
+      if (!brand) return;
+      if (!home) {
+        brand.style.transform = "";
+        home = brand.getBoundingClientRect();
+      }
+      const start = centers[centers.length - 1] - innerHeight / 2; // contact in place
+      const end = document.documentElement.scrollHeight - innerHeight; // the very end
+      const raw = Math.min(1, Math.max(0, (scrollY - start - (end - start) * 0.25) / ((end - start) * 0.75)));
+      const t = raw * raw * (3 - 2 * raw);
+      if (t <= 0 || root.classList.contains("driving")) {
+        brand.style.transform = "";
+        brand.style.filter = "";
+        return;
+      }
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const width = Math.min(innerWidth * 0.78, 44 * rem);
+      const top = Math.min(Math.max(5.5 * rem, innerHeight * 0.18), 11 * rem);
+      const k = 1 + (width / home.width - 1) * t;
+      const dx = ((innerWidth - width) / 2 - home.left) * t;
+      const dy = (top - home.top) * t;
+      brand.style.transformOrigin = "0 0";
+      brand.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(${k.toFixed(4)})`;
+      brand.style.filter = `drop-shadow(0 2px ${(14 / k).toFixed(1)}px rgba(3, 4, 9, ${(0.9 * t).toFixed(2)}))`;
+    };
+    // Mouse wheel, trackpad and keyboard. A wheel click, a trackpad flick or a key moves exactly one section
+    // and stops there; the momentum that follows a flick is swallowed so it can't carry you further.
+    // A slow trackpad drag moves the page (and the car) by hand instead, but never past the next section:
+    // it stops there until you start a new gesture. The pause after each move always ends by itself after
+    // a fixed time, so scrolling can never get stuck waiting for a click.
+    const restingPoints = () => [...centers.map((c) => c - innerHeight / 2), document.documentElement.scrollHeight - innerHeight];
+    let pausedUntil = 0, lastWheelAt = 0, lastAbs = 0;
+    let gesture: { mode: "step"; done: boolean } | { mode: "drag"; lo: number; hi: number } | null = null;
+    const FLICK = 40; // px in one event: a wheel click, or the start of a flick
+    const step = (dir: 1 | -1) => {
+      const pts = restingPoints();
+      const y = scrollY;
+      const target = dir > 0 ? pts.find((p) => p > y + 4) : [...pts].reverse().find((p) => p < y - 4);
+      if (target === undefined) return;
+      scrollTo({ top: target, behavior: "smooth" });
+      pausedUntil = performance.now() + 650;
+    };
+    const touchOnly = matchMedia("(hover: none)").matches;
+    if (!touchOnly) {
+      addEventListener(
+        "wheel",
+        (e) => {
+          if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // pinch zoom, sideways scrolls
+          e.preventDefault();
+          const now = performance.now();
+          const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
+          const abs = Math.abs(px), dir = px > 0 ? 1 : -1;
+          const newGesture = now - lastWheelAt > 180;
+          const surge = abs >= FLICK && abs > lastAbs * 1.5 + 2; // a flick that starts without a pause
+          lastWheelAt = now;
+          lastAbs = abs;
+          if (newGesture || !gesture || surge) {
+            if (abs >= FLICK || e.deltaMode !== 0) gesture = { mode: "step", done: false };
+            else {
+              const pts = restingPoints(), y = scrollY;
+              const lo = [...pts].reverse().find((p) => p < y - 4) ?? 0;
+              const hi = pts.find((p) => p > y + 4) ?? pts[pts.length - 1];
+              gesture = { mode: "drag", lo, hi };
+            }
+          }
+          if (now < pausedUntil) return;
+          if (gesture.mode === "step") {
+            if (!gesture.done) {
+              gesture.done = true;
+              step(dir);
+            }
+            return;
+          }
+          scrollTo({ top: Math.min(gesture.hi, Math.max(gesture.lo, scrollY + px)), behavior: "instant" });
+        },
+        { passive: false },
+      );
+      addEventListener("keydown", (e) => {
+        const t = e.target as HTMLElement;
+        if (e.altKey || e.ctrlKey || e.metaKey || t.closest("input, textarea, select, [contenteditable]")) return;
+        const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
+        if (!dir) return;
+        e.preventDefault();
+        if (performance.now() >= pausedUntil) step(dir as 1 | -1);
+      });
+    }
+    stops.forEach((b, i) =>
+      b.addEventListener("click", () => {
+        scrollTo({ top: centers[i] - innerHeight / 2, behavior: "smooth" });
+      }),
+    );
+    measure();
+    update();
+    addEventListener("scroll", update, { passive: true });
+    addEventListener("resize", () => ((home = null), measure(), update()));
+    new ResizeObserver(() => (measure(), update())).observe(root);
+
+    // The card for a selected star.
+    const card = root.querySelector<HTMLElement>("[data-card]")!;
+    const show = (id: string | null) => {
+      const c = id ? cards[id] : null;
+      card.hidden = !c;
+      if (!c || !id) return;
+      card.style.setProperty("--c", c.color);
+      card.querySelector("[data-card-meta]")!.textContent = c.meta;
+      card.querySelector("[data-card-title]")!.textContent = c.label;
+      card.querySelector("[data-card-blurb]")!.textContent = c.blurb;
+      const tags = card.querySelector<HTMLElement>("[data-card-tags]")!;
+      tags.textContent = c.tags.join(" · ");
+      tags.hidden = !c.tags.length;
+      card.querySelector<HTMLAnchorElement>("[data-card-link]")!.href = `/atlas/${id}`;
+      card.querySelector("[data-card-rel]")!.replaceChildren(
+        ...c.related.map((r: { id: string; label: string }) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = r.label;
+          b.addEventListener("click", () => (api?.select(r.id), show(r.id)));
+          return b;
+        }),
+      );
+      card.style.animation = "none";
+      void card.offsetWidth;
+      card.style.animation = "";
+    };
+    card.querySelector("[data-card-close]")!.addEventListener("click", () => (api?.select(null), show(null)));
+    addEventListener("keydown", (e) => e.key === "Escape" && !card.hidden && (api?.select(null), show(null)));
+
+    // The loader stays up until everything is in: the page itself (images, fonts) and then either the whole
+    // 3D scene (car, textures, shaders, a first frame) or, if the 3D can't run, the photos of the picture story.
+    const loader = (window as Window & { __loader?: { done(): void } }).__loader;
+    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const pageLoaded = new Promise<void>((r) => (document.readyState === "complete" ? r() : addEventListener("load", () => r(), { once: true })));
+    let revealed = false;
+    const reveal = async () => {
+      if (revealed) return;
+      revealed = true;
+      await Promise.race([Promise.all([pageLoaded, document.fonts?.ready]), wait(8000)]);
+      loader?.done();
+    };
+    // The picture story replaces the 3D. Never the 3D without its car.
+    const useSlides = async (why: unknown) => {
+      if (fallback || revealed) return;
+      fallback = true;
+      console.warn("3D unavailable, showing the picture story", why);
+      api?.dispose();
+      api = null;
+      delete root.dataset.three;
+      root.dataset.fallback = "";
+      measure();
+      update();
+      const imgs = slides.map((s) => s.querySelector("img")!);
+      imgs.forEach((i) => (i.loading = "eager"));
+      await Promise.race([Promise.all(imgs.map((i) => i.decode().catch(() => {}))), wait(12000)]);
+      reveal();
+    };
+
+    // Only run the 3D where it will run well.
+    const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+    const skip = matchMedia("(prefers-reduced-motion: reduce)").matches || (nav.deviceMemory ?? 8) <= 2 || nav.connection?.saveData;
+    const start = async () => {
+      // A very slow connection gets the picture story rather than an endless wait.
+      setTimeout(() => !revealed && useSlides("timed out"), 30000);
+      try {
+        const { initPass } = await import("../scripts/pass/scene");
+        if (fallback) return;
+        api = initPass({
+          onReady: () => {
+            if (!fallback) reveal();
+          },
+          onFail: (e) => useSlides(e),
+          canvas: root.querySelector<HTMLCanvasElement>("[data-canvas]")!,
+          labels: root.querySelector<HTMLElement>("[data-labels]")!,
+          center: root.querySelector<HTMLElement>("[data-center]")!,
+          pointer: root.querySelector<HTMLElement>("[data-sky]")!,
+          ...data,
+          onSelect: show,
+          onRace: (e) => {
+            const fmt = (t: number) => (t >= 60 ? `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}` : t.toFixed(1));
+            const clock = root.querySelector<HTMLElement>("[data-race-clock]")!;
+            const gates = root.querySelector<HTMLElement>("[data-race-gates]")!;
+            const flash = root.querySelector<HTMLElement>("[data-race-flash]")!;
+            const note = root.querySelector<HTMLElement>("[data-race-note]")!;
+            const again = root.querySelector<HTMLElement>("[data-race-again]")!;
+            const show = (text: string, kind: string, hideAfter = 0) => {
+              flash.textContent = text;
+              flash.className = `race-flash on ${kind}`;
+              clearTimeout(Number(flash.dataset.timer));
+              if (hideAfter) flash.dataset.timer = String(window.setTimeout(() => flash.classList.remove("on"), hideAfter));
+            };
+            if (e.type === "reset") {
+              clock.textContent = gates.textContent = note.textContent = again.textContent = "";
+              clock.classList.remove("low");
+              flash.className = "race-flash";
+            } else if (e.type === "go") {
+              show("GO!", "go", 1100);
+              clock.textContent = fmt(e.left);
+              gates.textContent = `Gate 1 of ${e.gates}`;
+            } else if (e.type === "tick") {
+              clock.textContent = fmt(e.left);
+              clock.classList.toggle("low", e.left < 5);
+              gates.textContent = e.gate < e.gates ? `Gate ${e.gate + 1} of ${e.gates}` : "Finish";
+            } else if (e.type === "gate") {
+              show(`+${e.added.toFixed(1)}`, "plus", 900);
+            } else if (e.type === "fail") {
+              clock.textContent = "0.0";
+              show("FAILED", "fail");
+              again.textContent = "Press R to restart";
+            } else if (e.type === "finish") {
+              clock.classList.remove("low");
+              clock.textContent = gates.textContent = ""; // the time is in the message below
+              show("FINISHED", "done");
+              note.innerHTML = `Toge run completed in <b>${e.total.toFixed(2)} seconds</b>`;
+              again.textContent = "Press R to race again";
+            }
+          },
+          onGauge: (kmh, gear) => {
+            root.querySelector<HTMLElement>("[data-kmh]")!.textContent = String(kmh);
+            root.querySelector<HTMLElement>("[data-gear]")!.textContent = gear;
+          },
+          onSound: (st) => {
+            const el = root.querySelector<HTMLElement>("[data-sound]")!;
+            el.textContent = st === "on" ? "Sound on · M" : st === "off" ? "Sound off · M" : st === "blocked" ? "Sound blocked by the browser" : "Sound unavailable";
+            el.classList.toggle("warn", st === "blocked" || st === "unavailable");
+          },
+          onDrive: (on) => {
+            root.classList.toggle("driving", on);
+            document.documentElement.classList.toggle("driving", on);
+            grow(); // the wordmark goes back to its place in the header while you drive
+          },
+        });
+        update();
+        new IntersectionObserver(([e]) => api?.setActive(e.isIntersecting)).observe(view);
+        if (!fallback) root.dataset.three = "";
+      } catch (err) {
+        useSlides(err);
+      }
+    };
+    if (skip) useSlides("reduced motion, low memory or data saver");
+    else start();
+  }
+</script>

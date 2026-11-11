@@ -1,8 +1,10 @@
 # andriantam.com
 
-Static Astro site for Andrian Tam: photographer, videographer and software engineer.
+Static Astro site for Andrian Tam: photographer, software engineer and brand builder.
 
-- **Home:** six full-screen slides. The hero is a scroll-scrubbed video; the rest use native CSS scroll-driven animations.
+- **Home:** "The Pass", a real-time 3D scene (three.js). It opens on the night sky, where every star is a node of the atlas; scrolling brings the camera down to the car for a drive up a mountain road, one chapter and one camera angle per stretch, ending with a handbrake turn in a car park and the contact details. The road, barriers, streetlights, gates and terrain are built in code; the car is the simulator's WRX model. Falls back to a still image without WebGL, on low-memory devices and with reduced motion.
+- **Atlas:** every skill, role, project and place as a node in `src/data/graph.ts`. That one file drives the constellation, the `/atlas` pages and their links.
+- **Portfolio:** client work, clients and testimonials on one page. **Gallery:** personal albums (Flickr categories personal, travel, astro, landscape, street, film).
 - **Portfolio:** Flickr albums, fetched at build time. Web and software projects are supported but hidden (`FLAGS.showDevProjects`).
 - **Articles:** Blogger posts, fetched at build time, with AdSense on article pages only.
 - **Resume**, the **Photographer Simulator** at `/play`, `llms.txt`, RSS, a sitemap and 301s for every old URL.
@@ -25,11 +27,13 @@ npm run build          # outputs dist/
 | Name, contact, socials, flags, ad and analytics ids | `src/config/site.ts` |
 | Services, clients, testimonials, FAQ, videos, featured albums | `src/data/content.ts` |
 | Resume | `src/data/resume.ts` |
+| Atlas nodes and links | `src/data/graph.ts` |
+| 3D landing scene | `src/scripts/pass/scene.ts`, `src/components/Pass.astro` |
 | Web and software projects (hidden for now) | `src/data/projects.ts` |
 | Blogger and Flickr connectors | `src/lib/blogger.ts`, `src/lib/flickr.ts` |
 | Data backups (committed) | `src/data/snapshots/*.json` |
 | Structured data (schema.org) | `src/lib/schema.ts` |
-| Hero video | `public/media/hero-*.mp4` |
+| Home intro still | `public/media/hero-poster-*.webp` |
 
 ## Data and backup
 
@@ -38,18 +42,7 @@ Every successful fetch is saved to `src/data/snapshots/`. If an API fails, the b
 `.github/workflows/daily-rebuild.yml` refreshes them daily; add the four keys as repository secrets.
 
 Flickr album categories come from each album's description, comma-separated: `events,automotive`.
-Known categories: automotive, events, corporate, couple, products, food, personal, travel.
-
-## Replacing the hero video
-
-Use one continuous shot with no cuts and slow movement in one direction (a drone push or a tracking shot), 10 to 20 seconds long:
-
-```bash
-scripts/encode-hero.sh ~/Movies/drone.mov 12 8   # start at 0:12, take 8 seconds
-```
-
-It re-encodes every frame as a keyframe (that's what makes scrubbing smooth), makes a 540x960 phone version and the posters, and verifies the result.
-Then edit the text beats in `src/pages/index.astro` (`data-from` / `data-to` are scroll progress from 0 to 1).
+Known categories: automotive, events, corporate, couple, products, food, and the personal ones that send an album to the gallery: personal, travel, astro, landscape, street, film.
 
 ## Deploying (Cloudflare Pages)
 
