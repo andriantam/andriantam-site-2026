@@ -228,7 +228,9 @@ const cards = Object.fromEntries(
   .view {
     position: sticky;
     top: 0;
-    height: 100svh;
+    /* The full screen with the browser's bars tucked away (100lvh), not the smaller screen with them showing
+       (100svh): otherwise, once a phone hides its address bar, a strip of plain background shows under it. */
+    height: 100lvh;
     overflow: hidden;
   }
   .view .still,
@@ -412,7 +414,7 @@ const cards = Object.fromEntries(
 
   .flow {
     position: relative;
-    margin-top: -100svh;
+    margin-top: -100lvh;
     overflow-x: clip; /* the dark patches behind chapter text reach past the screen edge on phones */
   }
   /* Scrolling rests on each section and never skips one. On touch screens that is the browser's own
@@ -1092,7 +1094,9 @@ const cards = Object.fromEntries(
       }
     };
     // The header's wordmark grows out of the corner into the middle of the sky as you scroll from contact
-    // to the footer, following the scroll both ways.
+    // to the footer, following the scroll both ways. Large screens only: on phones and tablets the footer
+    // fills the screen and the big wordmark would sit on top of its text.
+    const roomy = matchMedia("(min-width: 900px) and (min-height: 600px)");
     const brand = document.querySelector<HTMLElement>(".site-header .brand");
     let home: DOMRect | null = null;
     const grow = () => {
@@ -1105,7 +1109,7 @@ const cards = Object.fromEntries(
       const end = document.documentElement.scrollHeight - innerHeight; // the very end
       const raw = Math.min(1, Math.max(0, (scrollY - start - (end - start) * 0.25) / ((end - start) * 0.75)));
       const t = raw * raw * (3 - 2 * raw);
-      if (t <= 0 || root.classList.contains("driving")) {
+      if (t <= 0 || !roomy.matches || root.classList.contains("driving")) {
         brand.style.transform = "";
         brand.style.filter = "";
         return;
