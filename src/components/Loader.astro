@@ -13,8 +13,9 @@
 <noscript><style>.loader{display:none!important}html.loading{overflow:auto!important}</style></noscript>
 
 <style is:inline>
-  html.loading,
-  html.loading body {
+  /* Only the page itself: locking <body> too would make it its own scroll box, which pins the sticky 3D
+     view to the top of the page, off screen when a reload restores a scroll position further down. */
+  html.loading {
     overflow: hidden;
   }
   .loader {

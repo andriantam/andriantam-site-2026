@@ -18,7 +18,7 @@ const crumbs = [
 ];
 ---
 
-<Base title={`${n.label} · Atlas`} description={n.blurb} schema={[breadcrumbSchema(crumbs)]}>
+<Base image="/og/atlas.jpg" imageAlt="The Atlas: everything andriantam does, drawn as constellations" title={`${n.label} · Atlas`} description={n.blurb} schema={[breadcrumbSchema(crumbs)]}>
   <PageHero eyebrow={[cluster.label, KIND_LABELS[n.kind], n.when].filter(Boolean).join(" · ")} title={n.label} intro={n.blurb} compact crumbs={crumbs} />
   <section class="wrap body" style={`--c:${cluster.color}`}>
     {n.tags && n.tags.length > 0 && <p class="tags">{n.tags.join(" · ")}</p>}
