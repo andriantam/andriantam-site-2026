@@ -684,7 +684,7 @@ export function initPass(o: PassOptions): PassApi {
     chassis.add(s);
     return s;
   };
-  const tailGlows = [lampSprite(redGlow, -0.68, 0.86, -2.2, 1.1), lampSprite(redGlow, 0.68, 0.86, -2.2, 1.1)];
+  // No glow sprites at the back: the tail lamps are the model's own C-shaped LED guides, lit (see tailMats).
   const headGlows = [lampSprite(whiteGlow, -0.7, 0.68, 2.2, 1.5), lampSprite(whiteGlow, 0.7, 0.68, 2.2, 1.5)];
   // Two headlamps, two beams, each aimed slightly outwards like real low beams.
   const beams = [-1, 1].map((sx) => {
@@ -694,7 +694,7 @@ export function initPass(o: PassOptions): PassApi {
     chassis.add(b, b.target);
     return b;
   });
-  const tailMats: THREE.MeshStandardMaterial[] = [];
+  const tailMats: THREE.MeshStandardMaterial[] = [], tailLens: THREE.MeshStandardMaterial[] = [];
   // The third (high-mounted) brake light on the rear shelf, behind the back window. The model only paints it
   // into a texture, so a real lamp is placed there once the model has loaded.
   const stopLamp = new THREE.Group();
@@ -761,11 +761,18 @@ export function initPass(o: PassOptions): PassApi {
             mat.emissiveMap = mat.map;
             mat.emissiveIntensity = 5;
           } else if (name === "Tail_Guide") {
+            // The C-shaped LED light guide in each tail lamp
             tail.expandByObject(m);
-            mat.emissive.set("#ff1a0c");
+            mat.color.set("#2a0604");
+            mat.emissive.set("#ff3a12");
             mat.emissiveMap = mat.map;
-            mat.emissiveIntensity = 2;
+            mat.emissiveIntensity = 2.2;
             if (!tailMats.includes(mat)) tailMats.push(mat);
+          } else if (name === "Bright_Lights_Tail") {
+            // The red lens over the tail lamps
+            mat.emissive.set("#ff1206");
+            mat.emissiveIntensity = 0.12;
+            if (!tailLens.includes(mat)) tailLens.push(mat);
           } else if (/light|bulb/.test(lower) && !/backdrop/.test(lower)) {
             mat.emissiveIntensity = 0;
           }
@@ -819,10 +826,6 @@ export function initPass(o: PassOptions): PassApi {
           b.position.set(sx * hw, hc.y, Math.abs(hc.z));
           b.target.position.set(sx * (hw + 1.7), -0.6, 22);
         });
-      }
-      if (tc) {
-        const tw = Math.max(0.5, (tail.max.x - tail.min.x) / 2 - 0.2);
-        tailGlows.forEach((s, i) => s.position.set((i ? 1 : -1) * tw, tc.y, -Math.abs(tc.z) - 0.1));
       }
 
       // Wheels: take each one off the body and hang it from the car itself, on a steering pivot and an axle,
@@ -1567,7 +1570,16 @@ export function initPass(o: PassOptions): PassApi {
   const frame = () => {
     if (dead) return;
     requestAnimationFrame(frame);
-    if (!active || document.hidden) return;
+    if (!active || document.hidden) {
+      // Off screen (say, a reload that lands partway down before the page settles): still tell the page
+      // once everything is in, so the loader never waits on a scene nobody is looking at.
+      if (readyToTell && !told && !document.hidden) {
+        renderer.render(scene, camera);
+        told = true;
+        o.onReady?.();
+      }
+      return;
+    }
     clock.update();
     const dt = Math.min(clock.getDelta(), 0.05);
     const time = clock.getElapsed();
@@ -1726,9 +1738,10 @@ export function initPass(o: PassOptions): PassApi {
       if (!locked) w.spin.rotation.x = wheelSpin;
       if (w.front) w.steer.rotation.y = steerNow;
     }
-    const lit = 2 + brakeNow * 9;
-    for (const m of tailMats) m.emissiveIntensity = lit;
-    for (const g of tailGlows) g.scale.setScalar(0.9 + brakeNow * 1.3);
+    // Tail lamps: the C-shaped LEDs glow at rest and blaze under braking; the red lens around them lights
+    // up only a little, so the C stays the brightest thing.
+    for (const m of tailMats) m.emissiveIntensity = 3.2 + brakeNow * 7;
+    for (const m of tailLens) m.emissiveIntensity = 0.12 + brakeNow * 0.55;
     // The third brake light follows the tail lamps exactly: dim red at rest, full brightness on the brakes.
     // Off, it is an unlit lamp (no red at all); on, full brightness.
     stopLed.color.setRGB(0.04 + brakeNow * 2.6, 0.04 + brakeNow * 0.31, 0.04 + brakeNow * 0.16);
