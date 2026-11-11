@@ -289,12 +289,13 @@ for (const mat of root.listMaterials()) {
   if (/glass|^Window_Material/.test(name)) mat.setRoughnessFactor(0.02);
 }
 
-// 5. Lighter geometry where nobody looks closely: the engine under the bonnet and the cabin.
+// 5. Lighter geometry where nobody looks: the engine under the bonnet. The cabin stays at full detail,
+//    because the home page has a driver's-seat view (simplifying it made the dashboard look melted).
 await doc.transform(dedup(), weld());
 for (const mesh of root.listMeshes()) {
   for (const prim of mesh.listPrimitives()) {
     const name = prim.getMaterial()?.getName() ?? "";
-    const ratio = /EngineA/.test(name) ? 0.15 : name === "Interior" ? 0.35 : 0;
+    const ratio = /EngineA/.test(name) ? 0.15 : 0;
     if (ratio) simplifyPrimitive(prim, { simplifier: MeshoptSimplifier, ratio, error: 0.003, lockBorder: false });
   }
 }
@@ -303,7 +304,8 @@ await doc.transform(
   prune(),
   // Colour textures as high-quality WebP. Normal maps stay lossless: lossy compression smears their fine detail.
   textureCompress({ encoder: sharp, targetFormat: "webp", quality: 92, slots: /^(?!normalTexture).*$/ }),
-  meshopt({ encoder: MeshoptEncoder, level: "medium" }),
+  // Finer quantisation than the default, so close-up surfaces (the dashboard, the wheel) keep smooth shading.
+  meshopt({ encoder: MeshoptEncoder, level: "medium", quantizePosition: 16, quantizeNormal: 12, quantizeTexcoord: 14 }),
 );
 console.log("triangles after", count().toLocaleString());
 await io.write(output, doc);

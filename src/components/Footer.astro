@@ -1,5 +1,9 @@
 ---
 import { SITE } from "../config/site";
+interface Props {
+  overlay?: boolean; // see-through, for sitting over the home page scene
+}
+const { overlay = false } = Astro.props;
 const year = new Date().getFullYear();
 const social = [
   { href: SITE.social.instagram, label: "Instagram" },
@@ -10,18 +14,19 @@ const social = [
 ];
 ---
 
-<footer class="site-footer">
+<footer class:list={["site-footer", { overlay }]}>
   <div class="wrap grid">
     <div>
       <p class="tag">{SITE.tagline}</p>
       <p class="small">
-        Head of Brand, software engineer and photographer, based in {SITE.location.city}.
+        {SITE.roles[0]}, {SITE.roles[1].toLowerCase()} and {SITE.roles[2].toLowerCase()}, based in {SITE.location.city}.
       </p>
     </div>
     <nav aria-label="Footer">
       <ul>
-        <li><a href="/photography">Photography</a></li>
         <li><a href="/portfolio">Portfolio</a></li>
+        <li><a href="/gallery">Gallery</a></li>
+        <li><a href="/atlas">Atlas</a></li>
         <li><a href="/articles">Articles</a></li>
         <li><a href="/resume">Resume</a></li>
         <li><a href="/play">Play</a></li>
@@ -39,6 +44,15 @@ const social = [
 </footer>
 
 <style>
+  /* Over the home page scene: no background, and shadows so the text reads over the road */
+  .site-footer.overlay {
+    background: none;
+    border-top: 0;
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+    text-shadow:
+      0 2px 14px rgba(3, 4, 9, 0.95),
+      0 0 3px rgba(3, 4, 9, 0.85);
+  }
   .site-footer {
     border-top: 1px solid var(--line);
     padding: 4rem 0 2rem;

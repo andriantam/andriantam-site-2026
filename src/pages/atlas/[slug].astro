@@ -1,0 +1,87 @@
+---
+// One plain page per star in the atlas, so every node can be read, linked and indexed without 3D.
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { NODES, CLUSTERS, KIND_LABELS, related } from "../../data/graph";
+import { breadcrumbSchema } from "../../lib/schema";
+
+export function getStaticPaths() {
+  return NODES.map((n) => ({ params: { slug: n.id }, props: { n } }));
+}
+const { n } = Astro.props;
+const cluster = CLUSTERS.find((c) => c.id === n.cluster)!;
+const rel = related(n.id);
+const crumbs = [
+  { name: "Home", path: "/" },
+  { name: "Atlas", path: "/atlas" },
+  { name: n.label, path: `/atlas/${n.id}` },
+];
+---
+
+<Base title={`${n.label} · Atlas`} description={n.blurb} schema={[breadcrumbSchema(crumbs)]}>
+  <PageHero eyebrow={[cluster.label, KIND_LABELS[n.kind], n.when].filter(Boolean).join(" · ")} title={n.label} intro={n.blurb} compact crumbs={crumbs} />
+  <section class="wrap body" style={`--c:${cluster.color}`}>
+    {n.tags && n.tags.length > 0 && <p class="tags">{n.tags.join(" · ")}</p>}
+    {n.href && <p><a class="btn btn-primary" href={n.href}>{n.hrefLabel ?? "See more"} →</a></p>}
+    {
+      rel.length > 0 && (
+        <>
+          <h2>Connected to</h2>
+          <ul>
+            {rel.map((r) => (
+              <li>
+                <a href={`/atlas/${r.id}`}>
+                  <strong>{r.label}</strong>
+                  <span>{r.blurb}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )
+    }
+    <p class="back"><a href="/#atlas">← Back to the sky</a> · <a href="/atlas">The whole atlas</a></p>
+  </section>
+</Base>
+
+<style>
+  .body {
+    padding-block: 2.5rem 5rem;
+    max-width: 820px;
+  }
+  h2 {
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--c);
+    margin: 2.5rem 0 0.5rem;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  li {
+    border-top: 1px solid var(--line);
+  }
+  li a {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.9rem 0;
+    text-decoration: none;
+  }
+  li span {
+    color: var(--text-2);
+    font-size: 0.92rem;
+  }
+  .tags {
+    color: var(--c);
+    font-size: 0.92rem;
+    margin: 0 0 1.5rem;
+  }
+  .back {
+    margin-top: 2.5rem;
+    color: var(--text-3);
+  }
+</style>

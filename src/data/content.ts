@@ -73,8 +73,8 @@ export const SERVICES: Service[] = [
   {
     id: "tech",
     title: "Tech consulting",
-    outcome: "A senior engineer in your corner",
-    body: "Nearly 10 years building software for clients across Asia, Europe, the US and Australia, including six years at McKinsey Digital. I advise on technical direction and help build engineering teams.",
+    outcome: "A senior software engineer in your corner",
+    body: "Nearly 10 years building software for clients across Asia, Europe, the US and Australia, including six years at McKinsey Digital. I advise on technical direction and help build software engineering teams.",
     image: tech,
     alt: "andriantam coding on a laptop in a workshop",
     href: "/resume",
@@ -135,7 +135,7 @@ export const TESTIMONIALS: Testimonial[] = [
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "Is andriantam taking photography bookings?",
-    a: "No. Andrian no longer takes photography commissions. Photography is back to being a personal passion for him, without client briefs. He's happy to meet for a coffee to talk photography or share what he's learned: email andriantamwj@gmail.com.",
+    a: "Not regular jobs for now. Photography started as a hobby and became a business, and Andrian stepped back from client work to keep it a passion. He is still open to creative projects, and happy to talk photography over coffee: email andriantamwj@gmail.com.",
   },
   {
     q: "What kind of photography did andriantam do?",

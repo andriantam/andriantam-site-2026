@@ -1,17 +1,21 @@
 ---
 const links = [
   { href: "/", label: "Home" },
-  { href: "/resume", label: "Resume" },
-  { href: "/photography", label: "Photography" },
   { href: "/portfolio", label: "Portfolio" },
-  { href: "/articles", label: "Articles" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/play", label: "Play" },
+  { href: "/articles", label: "Articles" },
+  { href: "/resume", label: "Resume" },
 ];
+interface Props {
+  minimal?: boolean; // wordmark and a Menu button only, on every screen size
+}
+const { minimal = false } = Astro.props;
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 ---
 
-<header class="site-header">
+<header class:list={["site-header", { minimal }]}>
   <div class="bar wrap">
     <a href="/" class="brand" aria-label="andriantam, home">
       <img class="wordmark" src="/wordmark.png" alt="andriantam" width="2400" height="196" />
@@ -200,6 +204,77 @@ const active = (href: string) => (href === "/" ? path === "/" : path === href ||
       padding-top: 1rem;
     }
     .cta {
+      display: inline-block;
+    }
+  }
+
+  /* Minimal header (home page): nothing but the wordmark and a Menu button, so the scene has the screen. */
+  .minimal {
+    background: none;
+  }
+  /* While the sky (with the name at its centre) is in view, the corner wordmark steps aside. */
+  .minimal .brand {
+    transition: opacity 0.5s;
+  }
+  :global(html.at-sky) .minimal .brand {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .minimal:not(.menu-open)::before {
+    display: none;
+  }
+  .minimal .menu-btn {
+    display: block;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: rgba(11, 10, 14, 0.5);
+    color: var(--text);
+    cursor: pointer;
+  }
+  @media (min-width: 721px) {
+    .minimal nav {
+      display: none;
+      position: absolute;
+      top: 62px;
+      right: var(--gutter);
+      width: 250px;
+      padding: 0.4rem 1.1rem 1rem;
+      background: rgba(11, 10, 14, 0.94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+    }
+    .minimal.menu-open nav {
+      display: block;
+    }
+    .minimal.menu-open::before {
+      display: none;
+    }
+    .minimal nav ul {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+    .minimal nav li {
+      border-bottom: 1px solid var(--line);
+    }
+    .minimal nav a {
+      display: block;
+      font-size: 1rem;
+      padding: 0.75rem 0.2rem;
+    }
+    .minimal nav a[aria-current="page"] {
+      box-shadow: none;
+      color: var(--gold);
+    }
+    .minimal nav li:last-child {
+      border-bottom: 0;
+      padding-top: 0.9rem;
+    }
+    .minimal .cta {
       display: inline-block;
     }
   }

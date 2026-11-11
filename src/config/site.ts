@@ -2,13 +2,19 @@
 export const SITE = {
   url: "https://andriantam.com",
   name: "andriantam",
-  // Full name: only on the resume and in the Person structured data that tells search engines who andriantam is.
+  // Full name: in the home page heading, the resume and the Person structured data.
   person: "Andrian Tam",
   handle: "andriantam",
-  title: "andriantam | Passionate about solving problems and creating solutions",
+  title: "Andrian Tam (andriantam) | Photographer, software engineer and brand builder",
+  // The three roles, in this order, everywhere they appear.
+  roles: ["Photographer", "Software engineer", "Brand builder"],
   description:
-    "andriantam is Head of Brand at TROOPERS Singapore and a software engineer who spent six years at McKinsey & Company's digital practice. A photographer for over fifteen years, now shooting for the love of it.",
+    "Andrian Tam (andriantam) is a photographer, software engineer and brand builder in Singapore: fifteen years behind the camera, six years building software at McKinsey & Company, now Head of Brand at TROOPERS. Hands-on, visual, and open to creative collaborations.",
+  // The one slogan. Used in the footer, llms.txt and the home page.
   tagline: "Moments are not just meant to be captured, but to be experienced",
+  // Where things stand on taking work. One wording, used wherever availability is mentioned.
+  availability:
+    "Not taking regular photography jobs for now. Photography went from hobby to business, and he stepped back to keep it a passion. Still open to creative projects worth making.",
   locale: "en_SG",
   location: { city: "Singapore", country: "Singapore", countryCode: "SG" },
   email: "andriantamwj@gmail.com",

@@ -24,6 +24,7 @@ function legacyRedirects() {
           "# Generated at build time by astro.config.mjs",
           "/article /articles 301",
           "/web-development /portfolio 301",
+          "/photography /portfolio 301",
           "/project/* /portfolio 301",
           "/journal/* /articles/:splat 301",
         ];
