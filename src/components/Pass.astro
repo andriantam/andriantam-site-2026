@@ -124,7 +124,18 @@ const cards = Object.fromEntries(
       <p class="race-again" data-race-again></p>
     </div>
     <p class="gauge" aria-hidden="true"><b data-kmh>0</b><span>km/h</span><i data-gear>1</i><em data-sound></em></p>
-    <p class="drive-hint" aria-live="polite">W A S D to drive · Space for the handbrake · C to change camera · M for sound · Esc to stop</p>
+    <p class="drive-hint mouse-only" aria-live="polite">W A S D to drive · Space for the handbrake · C to change camera · M for sound · Esc to stop</p>
+    <!-- Touch driving: pedals at the bottom left (hold the brake once stopped to reverse), Left and Right at the bottom right -->
+    <div class="pad" data-pad aria-hidden="true">
+      <div class="pedals">
+        <div class="pedal go" data-pedal="go"><span>Accelerate</span></div>
+        <div class="pedal brake" data-pedal="brake"><span>Brake</span></div>
+      </div>
+      <div class="steer" data-steer>
+        <div class="turn" data-turn="-1"><i></i><span>Left</span></div>
+        <div class="turn right" data-turn="1"><i></i><span>Right</span></div>
+      </div>
+    </div>
     <nav class="rail" aria-label="Progress">
       <ol>
         {
@@ -139,6 +150,11 @@ const cards = Object.fromEntries(
       </ol>
     </nav>
   </div>
+
+  <!-- Take the wheel wherever the car is; press again to stop and go back to the story -->
+  <button type="button" class="engine" data-engine-btn aria-label="Start the engine and drive" aria-pressed="false">
+    <span class="face"><i class="led"></i>ENGINE<br />START<br />STOP</span>
+  </button>
 
   <div class="flow">
     <!-- The sky: the name at the centre of the map, the stars around it -->
@@ -796,6 +812,210 @@ const cards = Object.fromEntries(
   .pass.driving .drive-hint {
     opacity: 1;
   }
+  /* The engine button: below the Menu button. Press it to drive from wherever the car is; press it again to stop. */
+  .engine {
+    position: fixed;
+    z-index: 45;
+    top: calc(env(safe-area-inset-top) + 68px + 0.35rem);
+    right: var(--gutter);
+    width: 62px;
+    height: 62px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    background:
+      radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.95), transparent 38%),
+      conic-gradient(from 200deg, #f3f4f6, #8d9097, #eceef1, #6f7278, #e8e9ec, #9a9da4, #f3f4f6);
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(0, 0, 0, 0.6);
+    -webkit-tap-highlight-color: transparent;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.9);
+    transition:
+      opacity 0.4s var(--ease),
+      transform 0.4s var(--ease),
+      visibility 0s 0.4s;
+  }
+  .engine.on {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity 0.4s var(--ease),
+      transform 0.4s var(--ease);
+  }
+  .engine:active {
+    transform: scale(0.94);
+  }
+  .engine .face {
+    position: absolute;
+    inset: 6px;
+    display: grid;
+    place-content: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 30%, #f2453a, #c8161c 58%, #8a0a10);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(40, 0, 0, 0.7),
+      inset 0 3px 5px rgba(255, 255, 255, 0.28),
+      inset 0 -5px 9px rgba(0, 0, 0, 0.35);
+    color: #f6f3f0;
+    font: 700 6.6px/1.12 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 0.05em;
+    text-align: center;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  }
+  .engine .led {
+    display: block;
+    width: 9px;
+    height: 3px;
+    margin: 0 auto 3px;
+    border-radius: 2px;
+    background: #6a3d12;
+    transition:
+      background 0.2s,
+      box-shadow 0.2s;
+  }
+  .engine[aria-pressed="true"] .led {
+    background: #ffb13b;
+    box-shadow:
+      0 0 4px 1px rgba(255, 177, 59, 0.9),
+      0 0 10px 2px rgba(255, 140, 30, 0.5);
+  }
+  @media (max-width: 720px) {
+    .engine {
+      top: calc(env(safe-area-inset-top) + 60px + 0.35rem);
+    }
+  }
+  /* Touch controls: a layer over the whole screen while driving on a touch screen, so a stray touch can't
+     scroll or zoom the page; the pedals sit at the bottom left and the steering at the bottom right. */
+  .pad {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  :global(html.driving.touch-drive) .pad {
+    display: block;
+  }
+  .pedals {
+    position: absolute;
+    left: max(1rem, env(safe-area-inset-left));
+    bottom: max(1.2rem, env(safe-area-inset-bottom));
+    display: grid;
+    gap: 10px;
+  }
+  .pedal {
+    position: relative;
+    width: 76px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 9px, rgba(0, 0, 0, 0.45) 9px 12px),
+      linear-gradient(160deg, #4a4e57, #1b1d22);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    opacity: 0.5;
+    transition:
+      opacity 0.12s,
+      transform 0.12s;
+  }
+  .pedal.go {
+    height: 148px;
+  }
+  .pedal.brake {
+    height: 78px;
+  }
+  .pedal.held {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+  .pedal span {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 8px;
+    text-align: center;
+    font: 600 0.58rem/1 var(--font-body);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 1px 4px #000;
+  }
+  /* Steering: two buttons, side by side, in the same style as the pedals */
+  .steer {
+    position: absolute;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1.2rem, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 10px;
+  }
+  /* While driving on a touch screen the speed, gear and sound move in here, above the buttons, so they always
+     sit together wherever the browser's toolbars leave the bottom of the screen */
+  .steer > :global(.gauge) {
+    grid-column: 1 / -1;
+    justify-self: end;
+    position: static;
+    margin: 0 0 0.6rem;
+    opacity: 1;
+  }
+  .turn {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: linear-gradient(160deg, #4a4e57, #1b1d22);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    opacity: 0.5;
+    transition:
+      opacity 0.12s,
+      transform 0.12s;
+  }
+  .turn.held {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+  /* A chevron pointing the way it turns */
+  .turn i {
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    width: 18px;
+    height: 18px;
+    border-left: 3px solid #fff;
+    border-bottom: 3px solid #fff;
+    transform: translate(-30%, -50%) rotate(45deg);
+  }
+  .turn.right i {
+    transform: translate(-70%, -50%) rotate(-135deg);
+  }
+  .turn span {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 9px;
+    text-align: center;
+    font: 600 0.58rem/1 var(--font-body);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 1px 4px #000;
+  }
+  :global(html.driving) {
+    overflow: hidden;
+  }
+  @media (hover: none) {
+    .race-again {
+      display: none;
+    }
+  }
   /* Speed and gear while driving, in the race face */
   .gauge {
     position: absolute;
@@ -1078,7 +1298,8 @@ const cards = Object.fromEntries(
     // Ticker stops: 0 is the sky (both sky pages), then one per chapter, then contact.
     const finale = root.querySelector<HTMLElement>(".finale")!;
     const stopOf = (f: number) => Math.max(0, Math.min(stops.length - 1, Math.round(f)));
-    let current = -1;
+    let current = -1, ready = false, byButton = false;
+    const engine = document.querySelector<HTMLButtonElement>("[data-engine-btn]")!;
     const update = () => {
       const f = progress();
       api?.setProgress(f);
@@ -1086,6 +1307,7 @@ const cards = Object.fromEntries(
       document.documentElement.classList.toggle("at-sky", f < 0.45);
       grow();
       finale.classList.toggle("ready", f > centers.length - 1.22 || !api);
+      engine.classList.toggle("on", !!api && ready && (f > 0.9 || root.classList.contains("driving")));
       const s = stopOf(f);
       if (fallback) slides.forEach((el, i) => el.classList.toggle("on", i + 1 === s));
       if (s !== current) {
@@ -1146,6 +1368,7 @@ const cards = Object.fromEntries(
       addEventListener(
         "wheel",
         (e) => {
+          if (root.classList.contains("driving")) return void e.preventDefault(); // the page stays put while you drive
           if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // pinch zoom, sideways scrolls
           e.preventDefault();
           const now = performance.now();
@@ -1179,6 +1402,7 @@ const cards = Object.fromEntries(
       addEventListener("keydown", (e) => {
         const t = e.target as HTMLElement;
         if (e.altKey || e.ctrlKey || e.metaKey || t.closest("input, textarea, select, [contenteditable]")) return;
+        if (root.classList.contains("driving")) return;
         const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
         if (!dir) return;
         e.preventDefault();
@@ -1226,6 +1450,51 @@ const cards = Object.fromEntries(
     card.querySelector("[data-card-close]")!.addEventListener("click", () => (api?.select(null), show(null)));
     addEventListener("keydown", (e) => e.key === "Escape" && !card.hidden && (api?.select(null), show(null)));
 
+    // Touch controls: the pedals and the Left and Right buttons
+    const pad = root.querySelector<HTMLElement>("[data-pad]")!;
+    const steerBox = root.querySelector<HTMLElement>("[data-steer]")!;
+    const gauge = root.querySelector<HTMLElement>(".gauge")!;
+    const gaugeHome = gauge.previousElementSibling!; // where it goes back to
+    const pedalOn = { go: false, brake: false };
+    const turnOn = { left: false, right: false };
+    let steerVal = 0;
+    const send = () => api?.setStick(steerVal, pedalOn.brake ? 1 : pedalOn.go ? -1 : 0);
+    // Each pedal and steering button follows its own finger, so you can steer while on the throttle
+    const hold = (el: HTMLElement, set: (on: boolean) => void) => {
+      el.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);
+        el.classList.add("held");
+        set(true);
+      });
+      for (const t of ["pointerup", "pointercancel", "lostpointercapture"])
+        el.addEventListener(t, () => {
+          el.classList.remove("held");
+          set(false);
+        });
+    };
+    root.querySelectorAll<HTMLElement>("[data-pedal]").forEach((el) => {
+      const which = el.dataset.pedal as "go" | "brake";
+      hold(el, (on) => ((pedalOn[which] = on), send()));
+    });
+    // Left and Right: full lock while held (the car eases the wheel in, and less at speed); both at once, straight
+    root.querySelectorAll<HTMLElement>("[data-turn]").forEach((el) => {
+      const which = el.dataset.turn === "1" ? "right" : "left";
+      hold(el, (on) => {
+        turnOn[which] = on;
+        steerVal = (turnOn.right ? 1 : 0) - (turnOn.left ? 1 : 0);
+        send();
+      });
+    });
+    pad.addEventListener("pointerdown", (e) => e.preventDefault());
+    pad.addEventListener("contextmenu", (e) => e.preventDefault());
+    const stickUp = () => {
+      pedalOn.go = pedalOn.brake = turnOn.left = turnOn.right = false;
+      steerVal = 0;
+      root.querySelectorAll("[data-pedal], [data-turn]").forEach((el) => el.classList.remove("held"));
+      send();
+    };
+
     // The loader stays up until everything is in: the page itself (images, fonts) and then either the whole
     // 3D scene (car, textures, shaders, a first frame) or, if the 3D can't run, the photos of the picture story.
     const loader = (window as Window & { __loader?: { done(): void } }).__loader;
@@ -1266,7 +1535,10 @@ const cards = Object.fromEntries(
         if (fallback) return;
         api = initPass({
           onReady: () => {
-            if (!fallback) reveal();
+            if (fallback) return;
+            ready = true;
+            update();
+            reveal();
           },
           onFail: (e) => useSlides(e),
           canvas: root.querySelector<HTMLCanvasElement>("[data-canvas]")!,
@@ -1320,17 +1592,41 @@ const cards = Object.fromEntries(
           },
           onSound: (st) => {
             const el = root.querySelector<HTMLElement>("[data-sound]")!;
-            el.textContent = st === "on" ? "Sound on · M" : st === "off" ? "Sound off · M" : st === "blocked" ? "Sound blocked by the browser" : "Sound unavailable";
+            const m = touchOnly ? "" : " · M";
+            el.textContent = st === "on" ? `Sound on${m}` : st === "off" ? `Sound off${m}` : st === "blocked" ? "Sound blocked by the browser" : "Sound unavailable";
             el.classList.toggle("warn", st === "blocked" || st === "unavailable");
           },
-          onDrive: (on) => {
+          onDrive: (on, stop) => {
             root.classList.toggle("driving", on);
             document.documentElement.classList.toggle("driving", on);
+            const touchDrive = on && byButton;
+            document.documentElement.classList.toggle("touch-drive", touchDrive); // keys need no touch controls
+            // The speed, gear and sound sit with the steering buttons on a touch screen, and go back after
+            if (touchDrive) steerBox.prepend(gauge);
+            else if (gauge.parentElement === steerBox) gaugeHome.after(gauge);
+            byButton = false;
+            engine.setAttribute("aria-pressed", String(on));
+            engine.setAttribute("aria-label", on ? "Stop the engine and go back to the story" : "Start the engine and drive");
+            if (!on) {
+              // Back to the story at the part nearest where you left the car: that chapter, or contact in the car park
+              stickUp();
+              const i = Math.max(1, Math.min(centers.length - 1, stop));
+              scrollTo({ top: centers[i] - innerHeight / 2, behavior: "instant" });
+            }
+            update();
             grow(); // the wordmark goes back to its place in the header while you drive
           },
         });
         update();
         new IntersectionObserver(([e]) => api?.setActive(e.isIntersecting)).observe(view);
+        // The engine button: drive from here, or stop and go back to the story. A touch screen gets pedals and steering.
+        engine.addEventListener("click", () => {
+          if (!api) return;
+          const on = !root.classList.contains("driving");
+          byButton = on && (touchOnly || matchMedia("(pointer: coarse)").matches);
+          api.drive(on);
+          engine.blur(); // so Space is the handbrake, not another press of the button
+        });
         if (!fallback) root.dataset.three = "";
       } catch (err) {
         useSlides(err);

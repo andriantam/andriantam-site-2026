@@ -25,7 +25,7 @@ export interface PassOptions {
   clusters: { id: string; color: string }[];
   years: string[]; // one gate per chapter
   onSelect: (id: string | null) => void;
-  onDrive?: (on: boolean) => void; // the hidden drive mode started or stopped
+  onDrive?: (on: boolean, stop: number) => void; // drive mode started or stopped; on stopping, the page stop nearest the car (1.. chapters, chapters + 1 contact)
   onRace?: (e: RaceEvent) => void; // the hidden time attack
   onGauge?: (kmh: number, gear: string) => void; // speed and gear while driving
   onSound?: (state: string) => void; // sound on, off, or why it can't play
@@ -43,6 +43,9 @@ export interface PassApi {
   setProgress(f: number): void;
   setActive(on: boolean): void;
   select(id: string | null): void;
+  canDrive(): boolean; // the car is on screen and the 3D is running
+  drive(on: boolean): void; // start (from inside a tap or key press, so sound may play) or stop driving
+  setStick(x: number, y: number): void; // touch joystick: x -1 left .. 1 right, y -1 forward .. 1 back
   dispose(): void; // stop drawing for good and free the GPU
 }
 
@@ -728,6 +731,262 @@ export function initPass(o: PassOptions): PassApi {
   const wheels: Wheel[] = [];
   let wheelRadius = 0.33, wheelbase = 2.65;
 
+  // ── Cockpit: a steering wheel that turns, and live dials ─────────────────
+  // The model's interior is one mesh, with the steering wheel and both dials (needles and all) part of it.
+  // The wheel is cut out of it by shape and hung on the column, so it turns with the front wheels. Over each
+  // printed dial sits a new, lit face of our own, drawn live: the rev counter (with the gear in its middle)
+  // and the speedometer. Positions are in the interior mesh's own frame, measured from the model.
+  const WHEEL_C = new THREE.Vector3(0.2104, 0.0358, 0.5587); // the middle of the steering wheel
+  const WHEEL_AX = new THREE.Vector3(0.0017, -0.4339, 0.901).normalize(); // down the column, towards the dash
+  const STEER_RATIO = 4.2; // steering wheel turns per front wheel turn: about 160° at full lock
+  let steeringWheel: THREE.Object3D | null = null;
+  // Everything inside the wheel's outline (rim, spokes, hub and the badge on it, which is a separate part of
+  // the model) is cut out of its mesh and hung from one pivot on the column.
+  const splitSteeringWheel = (interior: THREE.Mesh, root: THREE.Object3D) => {
+    root.updateMatrixWorld(true);
+    const toInterior = new THREE.Matrix4().copy(interior.matrixWorld).invert();
+    const pivot = new THREE.Object3D();
+    pivot.position.copy(WHEEL_C);
+    const q = new THREE.Vector3(), M = new THREE.Matrix4();
+    const parts: THREE.Mesh[] = [];
+    root.traverse((obj) => void ((obj as THREE.Mesh).isMesh && !Array.isArray((obj as THREE.Mesh).material) && parts.push(obj as THREE.Mesh)));
+    let taken = 0;
+    for (const m of parts) {
+      const g = m.geometry, pos = g.attributes.position;
+      if (!pos || g.groups.length > 1 || (m as THREE.SkinnedMesh).isSkinnedMesh) continue;
+      M.multiplyMatrices(toInterior, m.matrixWorld); // this part's frame -> the interior's frame
+      // Each vertex in the wheel's own terms: how far down the column, and how far out from it
+      const AX = new Float32Array(pos.count), RAD = new Float32Array(pos.count);
+      let any = false;
+      for (let i = 0; i < pos.count; i++) {
+        q.fromBufferAttribute(pos, i).applyMatrix4(M).sub(WHEEL_C);
+        AX[i] = q.dot(WHEEL_AX);
+        RAD[i] = q.addScaledVector(WHEEL_AX, -AX[i]).length();
+        any ||= RAD[i] < 0.118 && Math.abs(AX[i]) < 0.1;
+      }
+      if (!any) continue;
+      const idx = g.index;
+      const tri = (t: number) => (idx ? idx.getX(t) : t);
+      const count = idx ? idx.count : pos.count;
+      const keep: number[] = [], wheel: number[] = [];
+      // A triangle is the wheel's if all of it is inside the rim and its middle is in the wheel's slab (the hub's
+      // sides reach back towards the column, so a test on every corner would leave the hub behind)
+      for (let t = 0; t < count; t += 3) {
+        const a = tri(t), b = tri(t + 1), c = tri(t + 2);
+        const mid = (AX[a] + AX[b] + AX[c]) / 3;
+        const inside = RAD[a] < 0.118 && RAD[b] < 0.118 && RAD[c] < 0.118 && mid > -0.08 && mid < 0.045 && Math.max(AX[a], AX[b], AX[c]) < 0.09;
+        (inside ? wheel : keep).push(a, b, c);
+      }
+      if (!wheel.length) continue;
+      const wg = new THREE.BufferGeometry();
+      for (const [k, v] of Object.entries(g.attributes)) wg.setAttribute(k, v);
+      wg.setIndex(wheel);
+      wg.computeBoundingSphere();
+      g.setIndex(keep);
+      g.clearGroups();
+      g.computeBoundingSphere();
+      const wm = new THREE.Mesh(wg, m.material);
+      wm.matrixAutoUpdate = false;
+      wm.matrix.makeTranslation(-WHEEL_C.x, -WHEEL_C.y, -WHEEL_C.z).multiply(M); // same place as before, now on the pivot
+      pivot.add(wm);
+      taken += wheel.length / 3;
+    }
+    if (taken < 100) return;
+    interior.add(pivot);
+    steeringWheel = pivot;
+  };
+  // Where a point of the texture lands on the mesh: the triangle that holds it in texture space, nearest `near`
+  const uvPoint = (m: THREE.Mesh, u: number, v: number, near: THREE.Vector3) => {
+    const g = m.geometry, pos = g.attributes.position, uv = g.attributes.uv, idx = g.index;
+    if (!uv || !idx) return null;
+    let best: THREE.Vector3 | null = null, bd = Infinity;
+    const p = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+    for (let t = 0; t < idx.count; t += 3) {
+      const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+      const ax = uv.getX(a), ay = uv.getY(a), bx = uv.getX(b), by = uv.getY(b), cx = uv.getX(c), cy = uv.getY(c);
+      const det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+      if (Math.abs(det) < 1e-12) continue;
+      const l1 = ((by - cy) * (u - cx) + (cx - bx) * (v - cy)) / det;
+      const l2 = ((cy - ay) * (u - cx) + (ax - cx) * (v - cy)) / det;
+      const l3 = 1 - l1 - l2;
+      if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
+      A.fromBufferAttribute(pos, a);
+      B.fromBufferAttribute(pos, b);
+      C.fromBufferAttribute(pos, c);
+      p.set(0, 0, 0).addScaledVector(A, l1).addScaledVector(B, l2).addScaledVector(C, l3);
+      const d = p.distanceToSquared(near);
+      if (d < bd) (bd = d), (best = p.clone());
+    }
+    return best;
+  };
+  // The dials, as drawn: [kind, centre in the texture (px of 512), max value, labels every, red from]
+  type Dial = { kind: "rev" | "speed"; g: CanvasRenderingContext2D; tex: THREE.CanvasTexture; shown: string };
+  const dials: Dial[] = [];
+  const DIAL_PX = 512, DIAL_R_TEX = 83 / 512;
+  const SWEEP = (Math.PI * 4) / 3; // 240°, clockwise from 9 o'clock
+  const drawDial = (d: Dial, value: number) => {
+    const g = d.g, S = DIAL_PX, c = S / 2, R = S / 2 - 4;
+    const rev = d.kind === "rev";
+    const max = rev ? 8 : 260, step = rev ? 1 : 20, minor = rev ? 0.5 : 10, red = rev ? 7 : Infinity;
+    const ang = (x: number) => Math.PI + (Math.min(max, Math.max(0, x)) / max) * SWEEP;
+    g.save();
+    g.clearRect(0, 0, S, S);
+    // Face: deep black, a thin chrome edge, a lit ring of ticks
+    const face = g.createRadialGradient(c, c * 0.9, R * 0.1, c, c, R);
+    face.addColorStop(0, "#1a1b1f");
+    face.addColorStop(1, "#060607");
+    g.fillStyle = face;
+    g.beginPath();
+    g.arc(c, c, R, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 6;
+    g.strokeStyle = "#8b8e95";
+    g.stroke();
+    if (red < max) {
+      g.beginPath();
+      g.arc(c, c, R * 0.9, ang(red), ang(max));
+      g.lineWidth = R * 0.09;
+      g.strokeStyle = "#d4161b";
+      g.stroke();
+    }
+    g.lineCap = "butt";
+    for (let x = 0; x <= max + 1e-6; x += minor) {
+      const a = ang(x), major = Math.abs(x / step - Math.round(x / step)) < 1e-6;
+      const r0 = R * (major ? 0.78 : 0.84), r1 = R * 0.95;
+      g.beginPath();
+      g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0);
+      g.lineTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1);
+      g.lineWidth = major ? 7 : 3.5;
+      g.strokeStyle = x >= red ? "#ff3b30" : "#f4f1ea";
+      g.stroke();
+      if (major) {
+        g.fillStyle = x >= red ? "#ff3b30" : "#f4f1ea";
+        g.font = `600 ${rev ? 50 : 29}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        const rt = R * (rev ? 0.6 : 0.64);
+        g.fillText(String(x), c + Math.cos(a) * rt, c + Math.sin(a) * rt);
+      }
+    }
+    g.fillStyle = "#9a9ca3";
+    g.font = `500 22px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    g.textAlign = "center";
+    g.fillText(rev ? "×1000 r/min" : "km/h", c, c + R * 0.36);
+    // Needle: a tapered red blade with a soft glow, and a black cap
+    const a = ang(value);
+    g.translate(c, c);
+    g.rotate(a);
+    g.shadowColor = "rgba(255, 60, 30, 0.85)";
+    g.shadowBlur = 14;
+    g.fillStyle = "#ff3a1e";
+    g.beginPath();
+    g.moveTo(-R * 0.16, -8);
+    g.lineTo(R * 0.86, -2.5);
+    g.lineTo(R * 0.86, 2.5);
+    g.lineTo(-R * 0.16, 8);
+    g.closePath();
+    g.fill();
+    g.shadowBlur = 0;
+    g.fillStyle = "#121316";
+    g.beginPath();
+    g.arc(0, 0, R * 0.1, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = "#55585f";
+    g.stroke();
+    g.restore();
+    d.tex.needsUpdate = true;
+  };
+  // The display between the dials: the gear, big, and the speed in figures
+  let display: { g: CanvasRenderingContext2D; tex: THREE.CanvasTexture; shown: string } | null = null;
+  const drawDisplay = (kmh: number, gear: string) => {
+    if (!display) return;
+    const g = display.g, W = 512, H = 256;
+    g.fillStyle = "#050607";
+    g.fillRect(0, 0, W, H);
+    g.textAlign = "center";
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "#ffb13b";
+    g.shadowColor = "rgba(255, 177, 59, 0.6)";
+    g.shadowBlur = 12;
+    g.font = `700 150px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    g.fillText(gear, W * 0.3, H * 0.74);
+    g.shadowBlur = 0;
+    g.fillStyle = "#f4f1ea";
+    g.font = `600 92px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    g.textAlign = "right";
+    g.fillText(String(Math.round(kmh)), W * 0.9, H * 0.6);
+    g.fillStyle = "#9a9ca3";
+    g.font = `500 36px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    g.fillText("km/h", W * 0.9, H * 0.84);
+    g.fillStyle = "#6b6e75";
+    g.font = `500 30px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    g.textAlign = "center";
+    g.fillText("GEAR", W * 0.3, H * 0.2);
+    display.tex.needsUpdate = true;
+  };
+  const makeDials = (m: THREE.Mesh) => {
+    const eye = new THREE.Vector3(0.221, 0.19, 0.122); // the driver's eyes, in this mesh's frame
+    for (const [kind, px] of [["rev", 92.5], ["speed", 261.25]] as const) {
+      const u = px / 512, v = 358.75 / 512;
+      const guess = new THREE.Vector3(kind === "rev" ? 0.259 : 0.158, 0.04, 0.748);
+      // The centre, and points half a radius across and down the dial (the very edge is off the dial's face)
+      const o = uvPoint(m, u, v, guess), ex = uvPoint(m, u + DIAL_R_TEX / 2, v, guess), ey = uvPoint(m, u, v + DIAL_R_TEX / 2, guess);
+      if (!o || !ex || !ey || o.distanceTo(guess) > 0.06) continue;
+      ex.sub(o).multiplyScalar(2);
+      ey.sub(o).multiplyScalar(2);
+      const n = new THREE.Vector3().crossVectors(ex, ey).normalize();
+      if (n.dot(eye.clone().sub(o)) < 0) n.negate();
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = DIAL_PX;
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      const mesh = new THREE.Mesh(
+        new THREE.CircleGeometry(1, 72),
+        // Unlit, so it reads as a backlit dial at night; a little under full brightness
+        new THREE.MeshBasicMaterial({ map: tex, color: "#d9d9d9", polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
+      );
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.makeBasis(ex, ey, n.clone().multiplyScalar(0.01)).setPosition(o.addScaledVector(n, 0.0012));
+      m.add(mesh);
+      const d: Dial = { kind, g: canvas.getContext("2d")!, tex, shown: "" };
+      drawDial(d, 0);
+      dials.push(d);
+      if (kind === "rev") {
+        // The display sits between the dials, a little higher, facing the same way as the dials
+        const canvas2 = document.createElement("canvas");
+        canvas2.width = 512;
+        canvas2.height = 256;
+        const tex2 = new THREE.CanvasTexture(canvas2);
+        tex2.colorSpace = THREE.SRGBColorSpace;
+        tex2.anisotropy = 8;
+        const screen = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: tex2, color: "#d9d9d9", polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        screen.matrixAutoUpdate = false;
+        const ux = ex.clone().normalize(), uy = ey.clone().normalize(), r = ex.length();
+        const at = new THREE.Vector3(0.2087, 0.0533, 0.7524).addScaledVector(n, 0.0015);
+        screen.matrix.makeBasis(ux.multiplyScalar(r * 0.86), uy.multiplyScalar(r * 0.43), n.clone().multiplyScalar(0.01)).setPosition(at);
+        m.add(screen);
+        display = { g: canvas2.getContext("2d")!, tex: tex2, shown: "" };
+        drawDisplay(0, "1");
+      }
+    }
+  };
+  const cockpit = (root: THREE.Object3D) => {
+    let interior: THREE.Mesh | null = null;
+    root.traverse((obj) => {
+      const m = obj as THREE.Mesh;
+      if (m.isMesh && (m.material as THREE.Material)?.name === "Interior") interior = m;
+    });
+    if (!interior) return;
+    try {
+      makeDials(interior); // before the wheel is cut out: it shares the texture search
+      splitSteeringWheel(interior, root);
+    } catch (e) {
+      console.warn("Cockpit details skipped", e);
+    }
+  };
+
   const carLoaded = new GLTFLoader(manager)
     .setMeshoptDecoder(MeshoptDecoder)
     .loadAsync("/sim/car.glb")
@@ -868,6 +1127,7 @@ export function initPass(o: PassOptions): PassApi {
       }
       if (frontZs.length && rearZs.length) wheelbase = frontZs[0] - rearZs[0];
       o.canvas.dataset.wheels = String(wheels.length);
+      cockpit(root);
       car.position.copy(saved[0]);
       car.quaternion.copy(saved[1]);
       chassis.position.copy(saved[2]);
@@ -1242,9 +1502,10 @@ export function initPass(o: PassOptions): PassApi {
   };
   let wheelSpin = 0, steerNow = 0, brakeNow = 0, travelled = 0, speed = 0, lastSpeed = 0;
 
-  // ── Hidden: drive the car yourself ───────────────────────────────────────
-  // Once the car has slid to a stop in the car park, pressing W, A, S, D or Space hands it over: a chase
-  // camera drops in behind it and you can drive anywhere on the mountain. Esc, or scrolling back up, ends it.
+  // ── Drive the car yourself ───────────────────────────────────────────────
+  // Anywhere once the car is on screen, pressing W, A, S, D or Space (or the engine button, with a joystick on
+  // phones) hands it over where it is: a chase camera drops in behind it and you can drive anywhere on the
+  // mountain. Esc or the engine button ends it, and the page comes back at the part of the story nearest the car.
   let driving = false, handbrakeOn = false;
   const keys = new Set<string>();
   // The car: a six-speed WRX STI, geared for this mountain. Top speed in each gear at the red line (m/s),
@@ -1259,6 +1520,12 @@ export function initPass(o: PassOptions): PassApi {
   let gaugeAt = 0;
   const groundEuler = new THREE.Euler();
   const chaseCam = new THREE.Vector3(), chaseLook = new THREE.Vector3();
+  // The chase camera sits close and low behind the car, like a racing game's: the car fills the lower middle
+  // of the screen and the road runs on to the horizon above its roof.
+  // A portrait phone sees a narrow slice, so there it stands a little further back.
+  let CHASE_BACK = 4.6, CHASE_UP = 1.55;
+  const CHASE_AHEAD = 10, CHASE_AIM = 0.95;
+  const chaseFit = () => ([CHASE_BACK, CHASE_UP] = W_ < H_ ? [6.2, 1.85] : [4.6, 1.55]);
   const DRIVE_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "Space"];
   const sound = new PassSound();
   // A problem in the sound (an old browser, a blocked audio device) must never freeze the picture.
@@ -1277,7 +1544,15 @@ export function initPass(o: PassOptions): PassApi {
   // Camera views, cycled with C: behind the car, over the bonnet, and from the driver's seat (the model is left-hand drive).
   const VIEWS = ["chase", "hood", "seat"] as const;
   let view = 0;
-  const atTheEnd = () => eased >= F_DRIFT1 - 0.03 && progress >= F_DRIFT1 - 0.03;
+  const canDrive = () => active && !dead && told && eased > 0.75 && progress > 0.75;
+  let stickX = 0, stickY = 0, snap = false, sweepAt = -9;
+  // The page stop nearest the car: the chapter whose stretch of road it is on, or contact in the car park.
+  const stopNear = () => {
+    const dx = drv.x - lotC.x, dz = drv.z - lotC.z;
+    if (Math.abs(dx * endDir.x + dz * endDir.z) < LOT_LEN / 2 + 1 && Math.abs(dx * endSide.x + dz * endSide.z) < LOT_WID / 2 + 1) return CHAPTERS + 1;
+    const f = F_ROAD0 + confine(drv.x, drv.z).u * (F_ROAD1 - F_ROAD0);
+    return Math.max(1, Math.min(CHAPTERS, Math.round(f)));
+  };
 
   // ── Hidden: the time attack, downhill from the car park ──────────────────
   // A chequered line where the car park meets the road starts it; a second one near the bottom ends it.
@@ -1443,22 +1718,27 @@ export function initPass(o: PassOptions): PassApi {
     if (on === driving) return;
     driving = on;
     if (on) {
-      Object.assign(drv, { x: car.position.x, z: car.position.z, yaw: car.rotation.y, v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
+      chaseFit();
+      sweepAt = clock.getElapsed();
+      v1.set(0, 0, 1).applyQuaternion(car.quaternion); // the way the car faces, wherever the film left it
+      Object.assign(drv, { x: car.position.x, z: car.position.z, yaw: Math.atan2(v1.x, v1.z), v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
       Object.assign(startPose, { x: drv.x, z: drv.z, yaw: drv.yaw });
       resetRace();
       soundSafe(() => void sound.start().then((st) => o.onSound?.(st))); // inside the key press, so the browser allows sound
       // Drop the camera straight in behind the car (no long glide from wherever the film left it)
-      chaseCam.set(car.position.x - Math.sin(drv.yaw) * 7.5, car.position.y + 2.6, car.position.z - Math.cos(drv.yaw) * 7.5);
+      chaseCam.set(car.position.x - Math.sin(drv.yaw) * CHASE_BACK, car.position.y + CHASE_UP, car.position.z - Math.cos(drv.yaw) * CHASE_BACK);
       chaseLook.copy(car.position).setY(car.position.y + 0.9);
     } else {
       keys.clear();
+      stickX = stickY = 0;
+      snap = true; // the film picks up at the page's new place straight away, without gliding along the road
       resetRace();
       soundSafe(() => sound.stop());
       view = 0;
       camera.near = 0.3;
       camera.updateProjectionMatrix();
     }
-    o.onDrive?.(on);
+    o.onDrive?.(on, on ? 0 : stopNear());
   };
   addEventListener(
     "keydown",
@@ -1474,7 +1754,7 @@ export function initPass(o: PassOptions): PassApi {
       }
       if (e.code === "KeyR" && driving) {
         Object.assign(drv, { x: startPose.x, z: startPose.z, yaw: startPose.yaw, v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
-        chaseCam.set(startPose.x - Math.sin(startPose.yaw) * 7.5, car.position.y + 2.6, startPose.z - Math.cos(startPose.yaw) * 7.5);
+        chaseCam.set(startPose.x - Math.sin(startPose.yaw) * CHASE_BACK, car.position.y + CHASE_UP, startPose.z - Math.cos(startPose.yaw) * CHASE_BACK);
         resetRace();
         e.preventDefault();
         return;
@@ -1488,7 +1768,7 @@ export function initPass(o: PassOptions): PassApi {
       }
       if (!DRIVE_KEYS.includes(e.code)) return;
       if (!driving) {
-        if (!active || !atTheEnd()) return;
+        if (!canDrive()) return;
         setDriving(true);
       }
       keys.add(e.code);
@@ -1583,7 +1863,8 @@ export function initPass(o: PassOptions): PassApi {
     clock.update();
     const dt = Math.min(clock.getDelta(), 0.05);
     const time = clock.getElapsed();
-    eased = first ? progress : eased + (progress - eased) * (1 - Math.exp(-dt * 4));
+    if (!driving) eased = first || snap ? progress : eased + (progress - eased) * (1 - Math.exp(-dt * 4));
+    snap = false;
     const f = eased;
     const skyK = 1 - smooth(F_SKY_END, F_SKY_END + 0.7, f); // 1 while looking at the sky
     const u = uAt(f);
@@ -1592,14 +1873,17 @@ export function initPass(o: PassOptions): PassApi {
 
     // Car: on the road, then sliding to a stop in the car park (or, in the hidden mode, wherever you drive it)
     let steerTo = 0, rollTo = 0, braking = 0;
-    if (driving && !atTheEnd()) setDriving(false); // scrolled back up: the film takes over again
     if (driving) {
-      const W = keys.has("KeyW"), S = keys.has("KeyS"), A = keys.has("KeyA"), D = keys.has("KeyD");
+      // Keys, or the touch joystick: how much throttle, brake and steering (0..1, -1..1)
+      const thr = Math.max(keys.has("KeyW") ? 1 : 0, clamp01((-stickY - 0.12) / 0.75));
+      const brk = Math.max(keys.has("KeyS") ? 1 : 0, clamp01((stickY - 0.12) / 0.75));
+      const steerIn = Math.max(-1, Math.min(1, (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0) - Math.sign(stickX) * clamp01((Math.abs(stickX) - 0.06) / 0.8)));
+      const W = thr > 0, S = brk > 0;
       handbrakeOn = keys.has("Space");
       const spd = Math.abs(drv.v);
       // Speed-sensitive steering: at speed, full lock asks for just a little more than the tyres can hold
       const maxSteer = Math.min(0.7, Math.atan((wheelbase * GRIP * 2.2) / Math.max(1, spd * spd)));
-      drv.steer += (((A ? 1 : 0) - (D ? 1 : 0)) * maxSteer - drv.steer) * Math.min(1, dt * 8);
+      drv.steer += (steerIn * maxSteer - drv.steer) * Math.min(1, dt * 8);
       let v = drv.v;
       // Gearbox: up at the red line (with a moment of no drive while the clutch is in), down as you slow
       if (drv.shift > 0) drv.shift -= dt;
@@ -1612,8 +1896,8 @@ export function initPass(o: PassOptions): PassApi {
       if (handbrakeOn) v = approach(v, 0, 7 * dt);
       else if (W) {
         if (v < -0.3) v = approach(v, 0, BRAKE * dt);
-        else if (drv.shift <= 0) v += pullAt(Math.max(0, v), drv.gear) * dt;
-      } else if (S) v = v > 0.3 ? approach(v, 0, BRAKE * dt) : Math.max(-7, v - 3 * dt);
+        else if (drv.shift <= 0) v += pullAt(Math.max(0, v), drv.gear) * thr * dt;
+      } else if (S) v = v > 0.3 ? approach(v, 0, BRAKE * brk * dt) : Math.max(-7, v - 3 * brk * dt);
       else v = approach(v, 0, 0.9 * dt); // engine braking
       v = v > 0 ? Math.max(0, v - dragAt(v) * dt) : Math.min(0, v + dragAt(v) * dt);
       v = Math.min(v, GEAR_TOP[5]);
@@ -1650,7 +1934,7 @@ export function initPass(o: PassOptions): PassApi {
         {
           speed: v,
           rpm: drv.rpm,
-          throttle: W ? 1 : S && v < 0.3 ? 0.6 : 0,
+          throttle: W ? thr : S && v < 0.3 ? 0.6 * brk : 0,
           shifting: drv.shift > 0,
           // squeal: sliding past the grip, near the limit, the handbrake, or braking hard
           skid: Math.max(clamp01(slip * 2), smooth(GRIP * 0.82, GRIP, lateral) * 0.45, handbrakeOn ? clamp01((Math.abs(v) - 3) / 6) : 0, S && v > 14 ? 0.35 : 0),
@@ -1738,6 +2022,8 @@ export function initPass(o: PassOptions): PassApi {
       if (!locked) w.spin.rotation.x = wheelSpin;
       if (w.front) w.steer.rotation.y = steerNow;
     }
+    // The steering wheel follows the front wheels, turned by the steering ratio
+    steeringWheel?.quaternion.setFromAxisAngle(WHEEL_AX, -steerNow * STEER_RATIO); // turning left turns the wheel anticlockwise, as the driver sees it
     // Tail lamps: the C-shaped LEDs glow at rest and blaze under braking; the red lens around them lights
     // up only a little, so the C stays the brightest thing.
     for (const m of tailMats) m.emissiveIntensity = 3.2 + brakeNow * 7;
@@ -1783,12 +2069,28 @@ export function initPass(o: PassOptions): PassApi {
       camLook.lerp(v2.copy(carPos).setY(carPos.y + (W_ < 700 ? 15 : 10)), fly);
     }
     const inside = driving && VIEWS[view] !== "chase";
+    // The dials, redrawn only from the driver's seat (the only view that sees them) and only when they change.
+    // Starting the engine sweeps both needles to the end and back, as the real car does.
+    if (driving && VIEWS[view] === "seat" && dials.length) {
+      const sw = time - sweepAt, k = sw < 1.5 ? Math.sin(Math.PI * clamp01(sw / 1.5)) : 0;
+      const gear = drv.v < -0.3 ? "R" : String(drv.gear + 1);
+      for (const d of dials) {
+        // The rev counter reads the engine's note: its softest (idle) at 2,000 and its peak (the shift) at 8,000
+        const revs = 2 + ((drv.rpm - IDLE) / (RED - IDLE)) * 6;
+        const val = d.kind === "rev" ? Math.max(revs, k * 8) : Math.max(Math.abs(drv.v) * 3.6, k * 260);
+        const key = val.toFixed(d.kind === "rev" ? 2 : 1) + gear;
+        if (key !== d.shown) (d.shown = key), drawDial(d, val);
+      }
+      const kmh = Math.abs(drv.v) * 3.6, key = Math.round(kmh) + gear;
+      if (display && key !== display.shown) (display.shown = key), drawDisplay(kmh, gear);
+    }
     if (driving && !inside) {
       // Chase camera: behind and above the car, lagging a little so turns and slides read
-      v1.copy(carPos).addScaledVector(fwd, -7.5);
-      v1.y += 2.6;
-      chaseCam.lerp(v1, 1 - Math.exp(-dt * 3.5));
-      chaseLook.lerp(v2.copy(carPos).addScaledVector(fwd, 3).setY(carPos.y + 0.9), 1 - Math.exp(-dt * 6));
+      chaseFit();
+      v1.copy(carPos).addScaledVector(fwd, -CHASE_BACK);
+      v1.y += CHASE_UP;
+      chaseCam.lerp(v1, 1 - Math.exp(-dt * 8)); // a short lag, so turns and slides still read
+      chaseLook.lerp(v2.copy(carPos).addScaledVector(fwd, CHASE_AHEAD).setY(carPos.y + CHASE_AIM), 1 - Math.exp(-dt * 6));
       camPos.copy(chaseCam);
       camLook.copy(chaseLook);
     } else if (inside) {
@@ -1834,7 +2136,7 @@ export function initPass(o: PassOptions): PassApi {
     camera.lookAt(camLook);
     // On wide screens, slide the frame sideways so the car sits beside the chapter text, not under it.
     const side = mix(ci % 2 ? 1 : -1, (ci + 1) % 2 ? 1 : -1, cw);
-    const shift = W_ > 900 ? side * 0.17 * W_ * (1 - skyK) * (1 - smooth(0, 0.3, t)) : 0;
+    const shift = W_ > 900 && !driving ? side * 0.17 * W_ * (1 - skyK) * (1 - smooth(0, 0.3, t)) : 0;
     if (Math.abs(shift) > 0.5) camera.setViewOffset(W_, H_, shift, 0, W_, H_);
     else if (camera.view) camera.clearViewOffset();
     sky.position.copy(camera.position);
@@ -1921,6 +2223,12 @@ export function initPass(o: PassOptions): PassApi {
       if (active) clock.update();
     },
     select: (id) => select(id, false),
+    canDrive: () => canDrive() || driving,
+    drive: (on) => {
+      if (on && !driving && !canDrive()) return;
+      setDriving(on);
+    },
+    setStick: (x, y) => ((stickX = x), (stickY = y)),
     dispose: () => {
       dead = true;
       active = false;
