@@ -33,11 +33,11 @@ export interface PassOptions {
   onFail?: (err: unknown) => void; // the car could not load: the page should show its picture story instead
 }
 export type RaceEvent =
-  | { type: "go"; left: number; gates: number }
+  | { type: "go"; left: number; gates: number; dir: "down" | "up" }
   | { type: "tick"; left: number; gate: number; gates: number }
   | { type: "gate"; added: number; gate: number; gates: number }
-  | { type: "fail"; total: number }
-  | { type: "finish"; total: number }
+  | { type: "fail"; total: number; dir: "down" | "up" }
+  | { type: "finish"; total: number; dir: "down" | "up" }
   | { type: "reset" };
 export interface PassApi {
   setProgress(f: number): void;
@@ -45,7 +45,8 @@ export interface PassApi {
   select(id: string | null): void;
   canDrive(): boolean; // the car is on screen and the 3D is running
   drive(on: boolean): void; // start (from inside a tap or key press, so sound may play) or stop driving
-  setStick(x: number, y: number): void; // touch joystick: x -1 left .. 1 right, y -1 forward .. 1 back
+  setStick(x: number, y: number): void; // touch controls: x -1 left .. 1 right, y -1 accelerate .. 1 brake
+  raceAction(kind: "again" | "up" | "free"): void; // after a race: run it again, the uphill climb, or drive on
   dispose(): void; // stop drawing for good and free the GPU
 }
 
@@ -723,6 +724,24 @@ export function initPass(o: PassOptions): PassApi {
     stopGlow.renderOrder = stopCore.renderOrder = 11;
     stopLamp.visible = false;
   }
+  // Reversing lamps: a white glow in each tail lamp and a soft white wash on the road behind, only while
+  // the car rolls backwards. Placed beside the tail lamps once the model has loaded.
+  const reverseGlows = [-1, 1].map((sx) => {
+    const s = lampSprite(whiteGlow, sx * 0.55, 0.78, -2.15, 0.5);
+    s.material.opacity = 0;
+    s.renderOrder = 11;
+    return s;
+  });
+  const reverseHalos = [-1, 1].map((sx) => {
+    const s = lampSprite(whiteGlow, sx * 0.55, 0.78, -2.2, 1.2);
+    s.material.opacity = 0;
+    s.renderOrder = 11;
+    return s;
+  });
+  const reverseBeam = new THREE.SpotLight("#f4f6ff", 0, 16, 0.9, 0.85, 1.6);
+  reverseBeam.position.set(0, 0.75, -2.1);
+  reverseBeam.target.position.set(0, -0.4, -9);
+  chassis.add(reverseBeam, reverseBeam.target);
   interface Wheel {
     steer: THREE.Object3D; // turns about the vertical axis (front wheels)
     spin: THREE.Object3D; // rolls about the axle
@@ -1006,7 +1025,7 @@ export function initPass(o: PassOptions): PassApi {
       holder.add(root);
       holder.updateMatrixWorld(true);
       // Lamps: they say which end is the front, and where the glows sit.
-      const head = new THREE.Box3(), tail = new THREE.Box3();
+      const head = new THREE.Box3(), tail = new THREE.Box3(), tailOne = new THREE.Box3();
       root.traverse((obj) => {
         const m = obj as THREE.Mesh;
         if (!m.isMesh) return;
@@ -1022,6 +1041,12 @@ export function initPass(o: PassOptions): PassApi {
           } else if (name === "Tail_Guide") {
             // The C-shaped LED light guide in each tail lamp
             tail.expandByObject(m);
+            // One lamp's C on its own (the +x side): the reversing lamp sits inside it
+            const pos = m.geometry.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              const p = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+              if (p.x > 0) tailOne.expandByPoint(p);
+            }
             mat.color.set("#2a0604");
             mat.emissive.set("#ff3a12");
             mat.emissiveMap = mat.map;
@@ -1077,6 +1102,20 @@ export function initPass(o: PassOptions): PassApi {
         stopLamp.visible = true;
       }
       chassis.add(holder);
+      if (tc) {
+        // Just inboard of the C-shaped LEDs, at the same height, sitting on the lens
+        // The clear section inside each lamp's C-shaped LED guide
+        const one = tailOne.getCenter(new THREE.Vector3());
+        // (the C wraps round the corner of the car, so the part seen from behind is a little inboard of its middle)
+        const tw = tailOne.isEmpty() ? tail.max.x - 0.14 : one.x - 0.03;
+        const rz = -Math.max(Math.abs(tail.min.z), Math.abs(tail.max.z)); // the back of the lamps
+        // A little behind the lens (so the boot lid doesn't hide them) and a little higher, so from the
+        // chase camera, looking down, they still sit on the lamps.
+        reverseGlows.forEach((s, i) => s.position.set((i ? 1 : -1) * tw, tc.y + 0.06, rz - 0.12));
+        reverseHalos.forEach((s, i) => s.position.set((i ? 1 : -1) * tw, tc.y + 0.08, rz - 0.16));
+        reverseBeam.position.set(0, tc.y, rz);
+        reverseBeam.target.position.set(0, -0.4, rz - 7);
+      }
       if (hc) {
         const hw = Math.max(0.5, (head.max.x - head.min.x) / 2 - 0.18);
         headGlows.forEach((s, i) => s.position.set((i ? 1 : -1) * hw, hc.y, Math.abs(hc.z) + 0.12));
@@ -1500,7 +1539,7 @@ export function initPass(o: PassOptions): PassApi {
     spring[vk] += (k * (target - spring[key]) - c * spring[vk]) * dt;
     spring[key] += spring[vk] * dt;
   };
-  let wheelSpin = 0, steerNow = 0, brakeNow = 0, travelled = 0, speed = 0, lastSpeed = 0;
+  let wheelSpin = 0, steerNow = 0, brakeNow = 0, reverseNow = 0, travelled = 0, speed = 0, lastSpeed = 0;
 
   // ── Drive the car yourself ───────────────────────────────────────────────
   // Anywhere once the car is on screen, pressing W, A, S, D or Space (or the engine button, with a joystick on
@@ -1561,28 +1600,33 @@ export function initPass(o: PassOptions): PassApi {
   // and braking like a real car, through the six gears. The allowance is only a little over that reference.
   const U_START = 1 - 4.5 / ROAD_LEN, U_FINISH = 30 / ROAD_LEN;
   const gateU = o.years.map((_, i) => Math.min(0.985, uAt(i + 1) + 34 / ROAD_LEN)).sort((a, b) => b - a); // in driving order
-  const checkpoints = [...gateU, U_FINISH];
-  const raceTimes: number[] = [];
-  {
-    const iStart = Math.round(U_START * FN), iEnd = Math.round(U_FINISH * FN);
-    const n = iStart - iEnd + 1, vMax = new Float32Array(n), v = new Float32Array(n);
-    for (let k = 0; k < n; k++) vMax[k] = Math.min(GEAR_TOP[5], Math.sqrt(GRIP / Math.max(Math.abs(curv[iStart - k]), 1e-4)));
-    v[0] = 0;
+  // Two races on the same road: downhill from the car park (the original), and the uphill climb from the
+  // bottom line to the car park. Each has its checkpoints in driving order and its own time allowances.
+  type RaceDir = "down" | "up";
+  const route: Record<RaceDir, { checkpoints: number[]; times: number[] }> = {
+    down: { checkpoints: [...gateU, U_FINISH], times: [] },
+    up: { checkpoints: [...gateU].reverse().concat(U_START), times: [] },
+  };
+  // The reference run: as fast as the bends allow, accelerating through the gears from a standstill at the
+  // start line and braking for what's ahead. Each stretch's allowance is 10% over it, plus half a second.
+  for (const dir of ["down", "up"] as RaceDir[]) {
+    const i0 = Math.round((dir === "down" ? U_START : U_FINISH) * FN), i1 = Math.round((dir === "down" ? U_FINISH : U_START) * FN);
+    const stepI = Math.sign(i1 - i0), n = Math.abs(i1 - i0) + 1;
+    const vMax = new Float32Array(n), v = new Float32Array(n);
+    for (let k = 0; k < n; k++) vMax[k] = Math.min(GEAR_TOP[5], Math.sqrt(GRIP / Math.max(Math.abs(curv[i0 + stepI * k]), 1e-4)));
     const gearFor = (sp: number) => Math.max(0, GEAR_TOP.findIndex((t) => sp < t * 0.985));
     for (let k = 1; k < n; k++) {
       const a = pullAt(v[k - 1], gearFor(v[k - 1]) === -1 ? 5 : gearFor(v[k - 1])) - dragAt(v[k - 1]);
-      v[k] = Math.min(vMax[k], Math.sqrt(Math.max(0, v[k - 1] ** 2 + 2 * a * STEP))); // accelerating through the gears
+      v[k] = Math.min(vMax[k], Math.sqrt(Math.max(0, v[k - 1] ** 2 + 2 * a * STEP)));
     }
-    for (let k = n - 2; k >= 0; k--) v[k] = Math.min(v[k], Math.sqrt(v[k + 1] ** 2 + 2 * BRAKE * 0.9 * STEP)); // braking for what's ahead
-    let prev = U_START, tAcc = 0, k = 0;
-    for (const cu of checkpoints) {
-      const kEnd = Math.min(n - 1, iStart - Math.round(cu * FN));
+    for (let k = n - 2; k >= 0; k--) v[k] = Math.min(v[k], Math.sqrt(v[k + 1] ** 2 + 2 * BRAKE * 0.9 * STEP));
+    let tAcc = 0, k = 0;
+    for (const cu of route[dir].checkpoints) {
+      const kEnd = Math.min(n - 1, Math.abs(Math.round(cu * FN) - i0));
       for (; k < kEnd; k++) tAcc += STEP / Math.max(0.5, (v[k] + v[k + 1]) / 2);
-      raceTimes.push(Math.ceil((tAcc * 1.1 + 0.5) * 2) / 2); // 10% over the reference run plus half a second: braking well for every bend makes it
+      route[dir].times.push(Math.ceil((tAcc * 1.1 + 0.5) * 2) / 2);
       tAcc = 0;
-      prev = cu;
     }
-    void prev;
   }
   // The chequered lines across the road
   {
@@ -1660,47 +1704,58 @@ export function initPass(o: PassOptions): PassApi {
     burstLight.intensity = 900 * Math.max(0, 1 - k / 0.8);
   };
   type RaceState = "ready" | "racing" | "failed" | "finished";
-  let race: RaceState = "ready", raceLeft = 0, raceTotal = 0, raceNext = 0, lastU = 1;
+  let race: RaceState = "ready", raceLeft = 0, raceTotal = 0, raceNext = 0, lastU = NaN;
+  let raceDir: RaceDir = "down", lastDir: RaceDir | null = null;
+  // After the finish line: the car brakes to a stop by itself and the camera circles it, until you choose
+  let finale = false, orbitA = 0;
   const startPose = { x: 0, z: 0, yaw: 0 };
   const resetRace = () => {
     race = "ready";
     raceNext = 0;
-    lastU = 1;
+    lastU = NaN; // a fresh start: a line only counts once the car has been seen on both sides of it
+    finale = false;
     o.onRace?.({ type: "reset" });
   };
   const raceStep = (u: number, dt: number) => {
+    const near = Math.abs(u - lastU) < 0.01; // moved along the road, not across a hairpin
     if (race === "ready") {
-      if (lastU >= U_START && u < U_START && u > U_START - 0.01) {
+      // Down through the line at the car park, or up through the line at the bottom
+      const down = lastU >= U_START && u < U_START && near, up = lastU <= U_FINISH && u > U_FINISH && near;
+      if (down || up) {
+        raceDir = lastDir = down ? "down" : "up";
         race = "racing";
         raceNext = 0;
-        raceLeft = raceTimes[0];
+        raceLeft = route[raceDir].times[0];
         raceTotal = 0;
-        o.onRace?.({ type: "go", left: raceLeft, gates: gateU.length });
+        o.onRace?.({ type: "go", left: raceLeft, gates: gateU.length, dir: raceDir });
         soundSafe(() => sound.play("go"));
         lastTick = Math.ceil(raceLeft);
       }
     } else if (race === "racing") {
       raceTotal += dt;
       raceLeft -= dt;
-      // Crossing the next checkpoint (going down the hill, and not by teleporting across a hairpin)
+      const { checkpoints, times } = route[raceDir];
       const cu = checkpoints[raceNext];
-      if (lastU > cu && u <= cu && lastU - u < 0.01) {
+      const crossed = raceDir === "down" ? lastU > cu && u <= cu : lastU < cu && u >= cu;
+      if (crossed && near) {
         raceNext++;
         if (raceNext === checkpoints.length) {
           race = "finished";
-          o.onRace?.({ type: "finish", total: raceTotal });
+          finale = true;
+          orbitA = Math.atan2(chaseCam.x - car.position.x, chaseCam.z - car.position.z); // start the circle from where the camera is
+          o.onRace?.({ type: "finish", total: raceTotal, dir: raceDir });
           soundSafe(() => sound.play("finish"));
         } else {
-          raceLeft += raceTimes[raceNext];
-          burst(gateU[raceNext - 1]);
+          raceLeft += times[raceNext];
+          burst(checkpoints[raceNext - 1]);
           soundSafe(() => sound.play("gate"));
-          o.onRace?.({ type: "gate", added: raceTimes[raceNext], gate: raceNext, gates: gateU.length });
+          o.onRace?.({ type: "gate", added: times[raceNext], gate: raceNext, gates: gateU.length });
         }
       }
       if (race === "racing" && raceLeft <= 0) {
         raceLeft = 0;
         race = "failed";
-        o.onRace?.({ type: "fail", total: raceTotal });
+        o.onRace?.({ type: "fail", total: raceTotal, dir: raceDir });
         soundSafe(() => sound.play("fail"));
       } else if (race === "racing") {
         o.onRace?.({ type: "tick", left: raceLeft, gate: raceNext, gates: gateU.length });
@@ -1713,6 +1768,24 @@ export function initPass(o: PassOptions): PassApi {
       }
     }
     lastU = u;
+  };
+  // Put the car on the road, stopped, at `u` (0 = the bottom, 1 = the car park), facing up or down the hill
+  const placeAt = (u: number, facing: RaceDir) => {
+    const p = road.getPointAt(u), t = road.getTangentAt(u);
+    const yaw = facing === "up" ? Math.atan2(t.x, t.z) : Math.atan2(-t.x, -t.z);
+    Object.assign(drv, { x: p.x, z: p.z, yaw, v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
+    chaseCam.set(p.x - Math.sin(yaw) * CHASE_BACK, p.y + CHASE_UP, p.z - Math.cos(yaw) * CHASE_BACK);
+    chaseLook.set(p.x, p.y + 0.9, p.z);
+  };
+  // What happens after a race. "again": that race from its start line. "up": the uphill climb, from just below
+  // its line at the bottom. "free": carry on driving from where the car stopped.
+  const raceAction = (kind: "again" | "up" | "free") => {
+    if (!driving) return;
+    if (kind === "free") return void resetRace();
+    const dir: RaceDir = kind === "up" ? "up" : lastDir ?? "down";
+    if (dir === "up") placeAt(Math.max(0.002, U_FINISH - 9 / ROAD_LEN), "up");
+    else placeAt(1, "down"); // the end of the road, at the car park: the start line is just ahead
+    resetRace();
   };
   const setDriving = (on: boolean) => {
     if (on === driving) return;
@@ -1753,9 +1826,18 @@ export function initPass(o: PassOptions): PassApi {
         return;
       }
       if (e.code === "KeyR" && driving) {
-        Object.assign(drv, { x: startPose.x, z: startPose.z, yaw: startPose.yaw, v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
-        chaseCam.set(startPose.x - Math.sin(startPose.yaw) * CHASE_BACK, car.position.y + CHASE_UP, startPose.z - Math.cos(startPose.yaw) * CHASE_BACK);
-        resetRace();
+        // After (or during) a race: that race again from its start line. Otherwise back to where you took over.
+        if (race !== "ready" || finale) raceAction("again");
+        else {
+          Object.assign(drv, { x: startPose.x, z: startPose.z, yaw: startPose.yaw, v: 0, steer: 0, pitch: 0, roll: 0, gear: 0, shift: 0, rpm: IDLE });
+          chaseCam.set(startPose.x - Math.sin(startPose.yaw) * CHASE_BACK, car.position.y + CHASE_UP, startPose.z - Math.cos(startPose.yaw) * CHASE_BACK);
+          resetRace();
+        }
+        e.preventDefault();
+        return;
+      }
+      if (e.code === "KeyU" && driving) {
+        raceAction("up"); // the uphill climb, from the bottom of the mountain
         e.preventDefault();
         return;
       }
@@ -1771,6 +1853,8 @@ export function initPass(o: PassOptions): PassApi {
         if (!canDrive()) return;
         setDriving(true);
       }
+      // In the finish scene the car stops by itself; once it has, any driving key drives on from there
+      if (finale && Math.abs(drv.v) < 0.5 && !e.repeat) raceAction("free");
       keys.add(e.code);
       if (!e.repeat) soundSafe(() => void sound.wake().then((st) => st && o.onSound?.(st))); // if the browser paused the audio, this key press can restart it
       e.preventDefault();
@@ -1872,18 +1956,18 @@ export function initPass(o: PassOptions): PassApi {
     const fly = smooth(F_DRIFT1 - 0.1, F_END, f); // pulling away at the end
 
     // Car: on the road, then sliding to a stop in the car park (or, in the hidden mode, wherever you drive it)
-    let steerTo = 0, rollTo = 0, braking = 0;
+    let steerTo = 0, rollTo = 0, braking = 0, reversing = 0;
     if (driving) {
       // Keys, or the touch joystick: how much throttle, brake and steering (0..1, -1..1)
       const thr = Math.max(keys.has("KeyW") ? 1 : 0, clamp01((-stickY - 0.12) / 0.75));
       const brk = Math.max(keys.has("KeyS") ? 1 : 0, clamp01((stickY - 0.12) / 0.75));
       const steerIn = Math.max(-1, Math.min(1, (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0) - Math.sign(stickX) * clamp01((Math.abs(stickX) - 0.06) / 0.8)));
-      const W = thr > 0, S = brk > 0;
-      handbrakeOn = keys.has("Space");
+      const W = thr > 0 && !finale, S = brk > 0 && !finale;
+      handbrakeOn = keys.has("Space") && !finale;
       const spd = Math.abs(drv.v);
       // Speed-sensitive steering: at speed, full lock asks for just a little more than the tyres can hold
       const maxSteer = Math.min(0.7, Math.atan((wheelbase * GRIP * 2.2) / Math.max(1, spd * spd)));
-      drv.steer += (steerIn * maxSteer - drv.steer) * Math.min(1, dt * 8);
+      drv.steer += ((finale ? 0 : steerIn) * maxSteer - drv.steer) * Math.min(1, dt * (finale ? 3 : 8));
       let v = drv.v;
       // Gearbox: up at the red line (with a moment of no drive while the clutch is in), down as you slow
       if (drv.shift > 0) drv.shift -= dt;
@@ -1893,7 +1977,8 @@ export function initPass(o: PassOptions): PassApi {
           drv.shift = SHIFT_TIME;
         } else if (drv.gear > 0 && v < GEAR_TOP[drv.gear - 1] * (W ? 0.72 : 0.55)) drv.gear--;
       } else drv.gear = 0;
-      if (handbrakeOn) v = approach(v, 0, 7 * dt);
+      if (finale) v = approach(v, 0, BRAKE * 0.7 * dt); // past the finish: a firm, smooth stop
+      else if (handbrakeOn) v = approach(v, 0, 7 * dt);
       else if (W) {
         if (v < -0.3) v = approach(v, 0, BRAKE * dt);
         else if (drv.shift <= 0) v += pullAt(Math.max(0, v), drv.gear) * thr * dt;
@@ -1974,7 +2059,8 @@ export function initPass(o: PassOptions): PassApi {
       fwd.set(0, 0, 1).applyQuaternion(car.quaternion);
       steerTo = drv.steer;
       rollTo = Math.max(-0.05, Math.min(0.05, (Math.tan(drv.steer) / wheelbase) * 0.62 * clamp01(Math.abs(v) / 10)));
-      braking = handbrakeOn || (S && v > 0.3) ? 1 : 0;
+      braking = finale || handbrakeOn || (S && v > 0.3) ? 1 : 0;
+      reversing = v < -0.15 ? 1 : 0;
     } else if (t <= 0) {
       road.getPointAt(u, carPos);
       road.getTangentAt(u, fwd);
@@ -2035,6 +2121,11 @@ export function initPass(o: PassOptions): PassApi {
     stopGlow.scale.set(0.5 + brakeNow * 0.75, 0.2 + brakeNow * 0.28, 1);
     stopCore.material.opacity = brakeNow;
     stopCore.scale.set(0.3 + brakeNow * 0.25, 0.1 + brakeNow * 0.08, 1);
+    // Reversing lamps: come on quickly, fade off a little slower, like a bulb
+    reverseNow += (reversing - reverseNow) * Math.min(1, dt * (reversing ? 14 : 7));
+    for (const s of reverseGlows) s.material.opacity = reverseNow;
+    for (const s of reverseHalos) s.material.opacity = reverseNow * 0.45;
+    reverseBeam.intensity = reverseNow * 26;
 
     // Camera on the journey: blend from one chapter's shot to the next between chapters
     const cf = Math.max(0, Math.min(CHAPTERS - 1, f - 1));
@@ -2068,7 +2159,7 @@ export function initPass(o: PassOptions): PassApi {
       camPos.lerp(v1, fly);
       camLook.lerp(v2.copy(carPos).setY(carPos.y + (W_ < 700 ? 15 : 10)), fly);
     }
-    const inside = driving && VIEWS[view] !== "chase";
+    const inside = driving && !finale && VIEWS[view] !== "chase";
     // The dials, redrawn only from the driver's seat (the only view that sees them) and only when they change.
     // Starting the engine sweeps both needles to the end and back, as the real car does.
     if (driving && VIEWS[view] === "seat" && dials.length) {
@@ -2084,7 +2175,17 @@ export function initPass(o: PassOptions): PassApi {
       const kmh = Math.abs(drv.v) * 3.6, key = Math.round(kmh) + gear;
       if (display && key !== display.shown) (display.shown = key), drawDisplay(kmh, gear);
     }
-    if (driving && !inside) {
+    if (driving && finale) {
+      // The finish: the camera eases out of the chase into a slow circle around the car
+      orbitA += dt * 0.22;
+      // (aimed above the car, so it sits low in the frame, under the finish text)
+      const tall = W_ < H_, orbitR = tall ? 7.4 : 8.6;
+      v1.set(carPos.x + Math.sin(orbitA) * orbitR, carPos.y + (tall ? 1.9 : 2.3), carPos.z + Math.cos(orbitA) * orbitR);
+      chaseCam.lerp(v1, 1 - Math.exp(-dt * 1.6));
+      chaseLook.lerp(v2.copy(carPos).setY(carPos.y + (tall ? 1.9 : 3.6)), 1 - Math.exp(-dt * 3));
+      camPos.copy(chaseCam);
+      camLook.copy(chaseLook);
+    } else if (driving && !inside) {
       // Chase camera: behind and above the car, lagging a little so turns and slides read
       chaseFit();
       v1.copy(carPos).addScaledVector(fwd, -CHASE_BACK);
@@ -2229,6 +2330,7 @@ export function initPass(o: PassOptions): PassApi {
       setDriving(on);
     },
     setStick: (x, y) => ((stickX = x), (stickY = y)),
+    raceAction: (kind) => raceAction(kind),
     dispose: () => {
       dead = true;
       active = false;
