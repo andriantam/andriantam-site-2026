@@ -2,7 +2,7 @@
 // The loader: black, one small star at the centre and a line of words under it. It is plain inline HTML, CSS
 // and a few lines of script, so it paints before anything else on the page. The words move on a quarter of
 // the way at a time as the page reports how much is in (window.__loader.progress(0..1)), ending on "What's
-// next is in your hands". When everything is in (window.__loader.done()), the star bursts into many stars
+// next is up to you". When everything is in (window.__loader.done()), the star bursts into many stars
 // that fly out and fade over the landing page.
 ---
 
@@ -157,7 +157,7 @@
     document.documentElement.classList.add("loading");
     // A quarter of the load each: hopes, dreams, the passion, then it's over to you. Each line stays up
     // long enough to read, so a fast load still steps through them rather than flickering.
-    var LINES = ["Loading hopes", "Loading dreams", "Building the passion", "What’s next is in your hands"];
+    var LINES = ["Loading hopes", "Loading dreams", "Fuelling the passion", "What’s next is up to you"];
     var HOLD = 1300; // ms each line stays up, at the least
     var lineEl = el.querySelector(".loader-line");
     var shown = 0, want = 0, swappedAt = performance.now(), finished = false, burstAt = 0;
