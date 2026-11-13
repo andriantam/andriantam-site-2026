@@ -1,14 +1,16 @@
 ---
-// The loader: black, one small star at the centre and "Loading..." under it. It is plain inline HTML, CSS and
-// a few lines of script, so it paints before anything else on the page. When the page says everything is in
-// (window.__loader.done()), the star bursts into many stars that fly out and fade over the landing page.
+// The loader: black, one small star at the centre and a line of words under it. It is plain inline HTML, CSS
+// and a few lines of script, so it paints before anything else on the page. The words move on a quarter of
+// the way at a time as the page reports how much is in (window.__loader.progress(0..1)), ending on "What's
+// next is in your hands". When everything is in (window.__loader.done()), the star bursts into many stars
+// that fly out and fade over the landing page.
 ---
 
 <div class="loader" id="loader" role="status" aria-live="polite">
   <div class="loader-bg"></div>
   <canvas class="loader-burst" aria-hidden="true"></canvas>
   <i class="loader-star" aria-hidden="true"></i>
-  <p class="loader-text">Loading<span>.</span><span>.</span><span>.</span></p>
+  <p class="loader-text"><span class="loader-line">Loading hopes</span><span class="loader-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
 </div>
 <noscript><style>.loader{display:none!important}html.loading{overflow:auto!important}</style></noscript>
 
@@ -93,24 +95,37 @@
     text-indent: 0.32em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.62);
+    padding: 0 1.5rem;
     transition: opacity 0.25s ease;
   }
-  .loader-text span {
+  .loader-line {
+    display: inline-block;
+    transition: opacity 0.28s ease, transform 0.28s ease, filter 0.28s ease;
+  }
+  .loader-line.swap {
+    opacity: 0;
+    transform: translateY(-5px);
+    filter: blur(2px);
+  }
+  /* The dots fill in one by one, then empty, on a loop */
+  .loader-dots span {
+    display: inline-block;
     animation: loader-dot 1.4s infinite;
   }
-  .loader-text span:nth-child(2) {
+  .loader-dots span:nth-child(2) {
     animation-delay: 0.2s;
   }
-  .loader-text span:nth-child(3) {
+  .loader-dots span:nth-child(3) {
     animation-delay: 0.4s;
   }
   .loader.out .loader-text {
     opacity: 0;
   }
   @keyframes loader-dot {
-    0%, 15% { opacity: 0; }
-    35%, 70% { opacity: 1; }
-    100% { opacity: 0; }
+    0%, 15% { opacity: 0; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+    42%, 70% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(0); }
   }
   @keyframes loader-pulse {
     0%, 100% { transform: scale(1); opacity: 0.85; }
@@ -123,8 +138,11 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .loader-star,
-    .loader-text span {
+    .loader-dots span {
       animation: none;
+    }
+    .loader-line {
+      transition: none;
     }
     .loader-bg {
       transition-duration: 0.4s;
@@ -137,10 +155,41 @@
     var el = document.getElementById("loader");
     if (!el) return;
     document.documentElement.classList.add("loading");
-    var finished = false;
+    // A quarter of the load each: hopes, dreams, the passion, then it's over to you. Each line stays up
+    // long enough to read, so a fast load still steps through them rather than flickering.
+    var LINES = ["Loading hopes", "Loading dreams", "Building the passion", "What’s next is in your hands"];
+    var HOLD = 1300; // ms each line stays up, at the least
+    var lineEl = el.querySelector(".loader-line");
+    var shown = 0, want = 0, swappedAt = performance.now(), finished = false, burstAt = 0;
+    function swapTo(i) {
+      shown = i;
+      swappedAt = performance.now();
+      lineEl.classList.add("swap");
+      setTimeout(function () {
+        lineEl.textContent = LINES[i];
+        lineEl.classList.remove("swap");
+      }, 260);
+    }
+    var ticker = setInterval(function () {
+      var now = performance.now();
+      // every line gets its full time to be read, even when everything is already in
+      if (want > shown && now - swappedAt >= HOLD) swapTo(shown + 1);
+      if (finished && !burstAt && shown === LINES.length - 1) burstAt = Math.max(now, swappedAt + HOLD + 200);
+      if (burstAt && now >= burstAt) {
+        clearInterval(ticker);
+        burst();
+      }
+    }, 60);
+    function progress(p) {
+      want = Math.max(want, Math.min(LINES.length - 1, Math.floor(p * LINES.length)));
+    }
+    // Everything is in: step on to the last line, give it a moment to be read, then burst.
     function done() {
       if (finished) return;
       finished = true;
+      want = LINES.length - 1;
+    }
+    function burst() {
       var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
       el.classList.add("out");
       el.setAttribute("aria-busy", "false");
@@ -198,7 +247,7 @@
         else end();
       })(t0);
     }
-    window.__loader = { done: done };
+    window.__loader = { done: done, progress: progress };
     // Never trap the page: if nothing reports back, let it through anyway.
     setTimeout(done, 45000);
   })();
