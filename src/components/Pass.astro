@@ -1604,7 +1604,7 @@ const cards = Object.fromEntries(
 
     // The loader stays up until everything is in: the page itself (images, fonts) and then either the whole
     // 3D scene (car, textures, shaders, a first frame) or, if the 3D can't run, the photos of the picture story.
-    const loader = (window as Window & { __loader?: { done(): void } }).__loader;
+    const loader = (window as Window & { __loader?: { done(): void; progress(p: number): void } }).__loader;
     const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
     const pageLoaded = new Promise<void>((r) => (document.readyState === "complete" ? r() : addEventListener("load", () => r(), { once: true })));
     let revealed = false;
@@ -1627,7 +1627,9 @@ const cards = Object.fromEntries(
       update();
       const imgs = slides.map((s) => s.querySelector("img")!);
       imgs.forEach((i) => (i.loading = "eager"));
-      await Promise.race([Promise.all(imgs.map((i) => i.decode().catch(() => {}))), wait(12000)]);
+      let decoded = 0;
+      const decodeOne = (i: HTMLImageElement) => i.decode().catch(() => {}).then(() => loader?.progress(++decoded / imgs.length));
+      await Promise.race([Promise.all(imgs.map(decodeOne)), wait(12000)]);
       reveal();
     };
 
@@ -1642,6 +1644,7 @@ const cards = Object.fromEntries(
       try {
         const { initPass } = await import("../scripts/pass/scene");
         if (fallback) return;
+        loader?.progress(0.25); // the 3D code is in: the first quarter; the scene's own loading is the rest
         api = initPass({
           onReady: () => {
             if (fallback) return;
@@ -1650,6 +1653,7 @@ const cards = Object.fromEntries(
             reveal();
           },
           onFail: (e) => useSlides(e),
+          onLoading: (p) => !fallback && loader?.progress(0.25 + p * 0.75),
           canvas: root.querySelector<HTMLCanvasElement>("[data-canvas]")!,
           labels: root.querySelector<HTMLElement>("[data-labels]")!,
           center: root.querySelector<HTMLElement>("[data-center]")!,

@@ -30,6 +30,7 @@ export interface PassOptions {
   onGauge?: (kmh: number, gear: string) => void; // speed and gear while driving
   onSound?: (state: string) => void; // sound on, off, or why it can't play
   onReady?: () => void; // the car, every texture and the shaders are loaded, and a full frame has been drawn
+  onLoading?: (p: number) => void; // how much of the scene is in, 0..1 (the car's bytes, the textures, the shaders)
   onFail?: (err: unknown) => void; // the car could not load: the page should show its picture story instead
 }
 export type RaceEvent =
@@ -115,6 +116,13 @@ export function initPass(o: PassOptions): PassApi {
 
   // Everything the scene fetches goes through one manager, so the page knows when all of it has arrived.
   const manager = new THREE.LoadingManager();
+  // Loading, for the loader's words: the car is most of the download, then the textures, then the shaders
+  let carPart = 0, itemsPart = 0;
+  const tellLoading = (extra = 0) => o.onLoading?.(Math.min(1, carPart * 0.6 + itemsPart * 0.25 + extra));
+  manager.onProgress = (_url, loaded, total) => {
+    itemsPart = total ? loaded / total : 0;
+    tellLoading();
+  };
   const texturesLoaded = new Promise<void>((resolve) => {
     manager.onLoad = resolve;
     manager.onError = (url) => console.warn("Did not load", url); // a missing texture is not worth failing over
@@ -1008,8 +1016,11 @@ export function initPass(o: PassOptions): PassApi {
 
   const carLoaded = new GLTFLoader(manager)
     .setMeshoptDecoder(MeshoptDecoder)
-    .loadAsync("/sim/car.glb")
+    .loadAsync("/sim/car.glb", (e) => {
+      if (e.total) (carPart = e.loaded / e.total), tellLoading();
+    })
     .then((gltf) => {
+      carPart = 1;
       const root = gltf.scene;
       let box = new THREE.Box3().setFromObject(root);
       const size = box.getSize(new THREE.Vector3());
@@ -1176,8 +1187,8 @@ export function initPass(o: PassOptions): PassApi {
   // after the loader don't stutter). The next drawn frame then tells the page.
   let readyToTell = false, told = false, dead = false;
   Promise.all([carLoaded, texturesLoaded])
-    .then(() => renderer.compileAsync(scene, camera).catch(() => {}))
-    .then(() => void (readyToTell = true))
+    .then(() => ((carPart = itemsPart = 1), tellLoading(), renderer.compileAsync(scene, camera).catch(() => {})))
+    .then(() => (tellLoading(0.15), void (readyToTell = true)))
     .catch((e) => {
       if (told || dead) return;
       told = true;
@@ -1559,6 +1570,13 @@ export function initPass(o: PassOptions): PassApi {
   let gaugeAt = 0;
   const groundEuler = new THREE.Euler();
   const chaseCam = new THREE.Vector3(), chaseLook = new THREE.Vector3();
+  // Starting and stopping the engine glide between the story's shot and the drive, instead of cutting:
+  // the camera eases from where it was, and on stopping the car rolls back to its place in the story.
+  const shownCam = new THREE.Vector3(), shownLook = new THREE.Vector3(); // what the camera showed last frame
+  const fromCam = new THREE.Vector3(), fromLook = new THREE.Vector3();
+  const fromCarPos = new THREE.Vector3(), fromCarQ = new THREE.Quaternion(), toCarQ = new THREE.Quaternion();
+  let blendAt = -9, blendFor = 1, blendCar = false, fromShift = 0, shownShift = 0, settle = false;
+  let pageMovedAt = -9, centreAt = ""; // the title on the centre star: left alone while the page scrolls
   // The chase camera sits close and low behind the car, like a racing game's: the car fills the lower middle
   // of the screen and the road runs on to the horizon above its roof.
   // A portrait phone sees a narrow slice, so there it stands a little further back.
@@ -1790,6 +1808,17 @@ export function initPass(o: PassOptions): PassApi {
   const setDriving = (on: boolean) => {
     if (on === driving) return;
     driving = on;
+    fromCam.copy(shownCam);
+    fromLook.copy(shownLook);
+    fromShift = shownShift;
+    blendAt = clock.getElapsed();
+    blendFor = on ? 1.2 : 1.6;
+    blendCar = !on;
+    if (!on) {
+      fromCarPos.copy(car.position);
+      fromCarQ.copy(car.quaternion);
+      settle = true; // the film's car jumps to its new place: no wheel spin or body dive from the jump
+    }
     if (on) {
       chaseFit();
       sweepAt = clock.getElapsed();
@@ -2088,8 +2117,9 @@ export function initPass(o: PassOptions): PassApi {
     right.crossVectors(fwd, UP).normalize();
 
     // Motion this frame drives the wheels and the suspension
-    const moved = first ? 0 : v1.copy(carPos).sub(lastPos).dot(v2.set(0, 0, 1).applyQuaternion(car.quaternion)); // metres forward
+    const moved = first || settle ? 0 : v1.copy(carPos).sub(lastPos).dot(v2.set(0, 0, 1).applyQuaternion(car.quaternion)); // metres forward
     lastPos.copy(carPos);
+    settle = false;
     travelled += moved;
     speed += ((dt > 0 ? moved / dt : 0) - speed) * Math.min(1, dt * 6);
     const accel = dt > 0 ? (speed - lastSpeed) / dt : 0;
@@ -2233,11 +2263,26 @@ export function initPass(o: PassOptions): PassApi {
       camPos.lerp(skyPos, skyK);
       camLook.lerp(v2.copy(skyPos).addScaledVector(v1, 100), skyK);
     }
+    // Engine on or off: glide from what the camera showed, and on stopping roll the car back into the story
+    const bk = smooth(0, 1, (time - blendAt) / blendFor);
+    if (bk < 1) {
+      camPos.lerpVectors(fromCam, camPos, bk);
+      camLook.lerpVectors(fromLook, camLook, bk);
+      if (blendCar) {
+        car.position.lerpVectors(fromCarPos, car.position, bk);
+        toCarQ.copy(car.quaternion);
+        car.quaternion.slerpQuaternions(fromCarQ, toCarQ, bk);
+      }
+    }
     camera.position.copy(camPos);
     camera.lookAt(camLook);
+    shownCam.copy(camPos);
+    shownLook.copy(camLook);
     // On wide screens, slide the frame sideways so the car sits beside the chapter text, not under it.
     const side = mix(ci % 2 ? 1 : -1, (ci + 1) % 2 ? 1 : -1, cw);
-    const shift = W_ > 900 && !driving ? side * 0.17 * W_ * (1 - skyK) * (1 - smooth(0, 0.3, t)) : 0;
+    let shift = W_ > 900 && !driving ? side * 0.17 * W_ * (1 - skyK) * (1 - smooth(0, 0.3, t)) : 0;
+    if (bk < 1) shift = mix(fromShift, shift, bk);
+    shownShift = shift;
     if (Math.abs(shift) > 0.5) camera.setViewOffset(W_, H_, shift, 0, W_, H_);
     else if (camera.view) camera.clearViewOffset();
     sky.position.copy(camera.position);
@@ -2273,9 +2318,12 @@ export function initPass(o: PassOptions): PassApi {
     hotMat.opacity = skyK * 0.95;
     centreStar.material.opacity = skyK;
     centreStar.scale.setScalar(20 + Math.sin(time * 1.3) * 1.5);
-    if (skyK > 0.01) {
+    // The name rides the page by itself while it scrolls (and while the film catches up): moving it from
+    // here as well makes it trail the page on iPhones, whose scrolling runs ahead of the page's script.
+    if (skyK > 0.01 && performance.now() - pageMovedAt > 250 && Math.abs(progress - eased) < 0.002) {
       v1.copy(centreStar.position).add(constellation.position).project(camera);
-      o.center.style.transform = `translate(${((v1.x * 0.5 + 0.5) * W_).toFixed(1)}px,${((-v1.y * 0.5 + 0.5) * H_).toFixed(1)}px)`;
+      const at = `translate(${Math.round((v1.x * 0.5 + 0.5) * W_)}px,${Math.round((-v1.y * 0.5 + 0.5) * H_)}px)`;
+      if (at !== centreAt) o.center.style.transform = centreAt = at;
     }
     o.center.style.opacity = String(skyK);
     o.center.style.visibility = skyK > 0.01 ? "visible" : "hidden";
@@ -2318,7 +2366,10 @@ export function initPass(o: PassOptions): PassApi {
   frame();
 
   return {
-    setProgress: (f) => (progress = f),
+    setProgress: (f) => {
+      if (f !== progress) pageMovedAt = performance.now();
+      progress = f;
+    },
     setActive: (on) => {
       active = on && !dead;
       if (active) clock.update();
