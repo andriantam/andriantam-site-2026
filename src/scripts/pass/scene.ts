@@ -1575,6 +1575,11 @@ export function initPass(o: PassOptions): PassApi {
   const shownCam = new THREE.Vector3(), shownLook = new THREE.Vector3(); // what the camera showed last frame
   const fromCam = new THREE.Vector3(), fromLook = new THREE.Vector3();
   const fromCarPos = new THREE.Vector3(), fromCarQ = new THREE.Quaternion(), toCarQ = new THREE.Quaternion();
+  // Rolling back: the car follows the road's centre line from where it stopped to its place in the story
+  const rollP = new THREE.Vector3(), rollEnd = new THREE.Vector3(), rollT = new THREE.Vector3(), rollFromOff = new THREE.Vector3();
+  const rollEndOff = new THREE.Vector3(), rollFilmPos = new THREE.Vector3(), rollQ = new THREE.Quaternion(), rollFilmQ = new THREE.Quaternion();
+  const rollFromCamRel = new THREE.Vector3(), rollFromLookRel = new THREE.Vector3(), rollCamRel = new THREE.Vector3(), rollLookRel = new THREE.Vector3();
+  let rollFromU = 0, rollPrevU = 0;
   let blendAt = -9, blendFor = 1, blendCar = false, fromShift = 0, shownShift = 0, settle = false;
   let pageMovedAt = -9, centreAt = ""; // the title on the centre star: left alone while the page scrolls
   // The chase camera sits close and low behind the car, like a racing game's: the car fills the lower middle
@@ -1814,10 +1819,18 @@ export function initPass(o: PassOptions): PassApi {
     blendAt = clock.getElapsed();
     blendFor = on ? 1.2 : 1.6;
     blendCar = !on;
+    let stopAt = 0;
     if (!on) {
       fromCarPos.copy(car.position);
       fromCarQ.copy(car.quaternion);
       settle = true; // the film's car jumps to its new place: no wheel spin or body dive from the jump
+      // Where on the road the car stopped, how far off the centre line it sits, and how far it has to roll
+      stopAt = stopNear();
+      rollFromCamRel.copy(fromCam).sub(fromCarPos);
+      rollFromLookRel.copy(fromLook).sub(fromCarPos);
+      rollFromU = rollPrevU = confine(drv.x, drv.z).u;
+      rollFromOff.copy(fromCarPos).sub(road.getPointAt(rollFromU, rollP));
+      blendFor = Math.max(1.6, Math.min(3.4, 1.6 + (Math.abs(uAt(stopAt) - rollFromU) * ROAD_LEN) / 250)); // a longer way takes a little longer
     }
     if (on) {
       chaseFit();
@@ -1840,7 +1853,7 @@ export function initPass(o: PassOptions): PassApi {
       camera.near = 0.3;
       camera.updateProjectionMatrix();
     }
-    o.onDrive?.(on, on ? 0 : stopNear());
+    o.onDrive?.(on, on ? 0 : stopAt);
   };
   addEventListener(
     "keydown",
@@ -2266,14 +2279,47 @@ export function initPass(o: PassOptions): PassApi {
     // Engine on or off: glide from what the camera showed, and on stopping roll the car back into the story
     const bk = smooth(0, 1, (time - blendAt) / blendFor);
     if (bk < 1) {
-      camPos.lerpVectors(fromCam, camPos, bk);
-      camLook.lerpVectors(fromLook, camLook, bk);
+      if (!blendCar) {
+        camPos.lerpVectors(fromCam, camPos, bk);
+        camLook.lerpVectors(fromLook, camLook, bk);
+      } else {
+        // Rolling back: keep the camera's place relative to the car, swinging round it (by angle, never
+        // through it) from the chase view to the story's shot, so it follows the car along the road
+        rollEndOff.copy(camPos).sub(car.position);
+        rollT.copy(camLook).sub(car.position);
+        const a0 = Math.atan2(rollFromCamRel.x, rollFromCamRel.z), a1 = Math.atan2(rollEndOff.x, rollEndOff.z);
+        const ang = a0 + Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0)) * bk;
+        const dist = mix(Math.hypot(rollFromCamRel.x, rollFromCamRel.z), Math.hypot(rollEndOff.x, rollEndOff.z), bk);
+        rollCamRel.set(Math.sin(ang) * dist, mix(rollFromCamRel.y, rollEndOff.y, bk), Math.cos(ang) * dist);
+        rollLookRel.lerpVectors(rollFromLookRel, rollT, bk);
+      }
       if (blendCar) {
-        car.position.lerpVectors(fromCarPos, car.position, bk);
-        toCarQ.copy(car.quaternion);
-        car.quaternion.slerpQuaternions(fromCarQ, toCarQ, bk);
+        // Follow the road, not a straight line over the hillside: slide along the centre line from where the
+        // car stopped to where the story has it (u is the film's place on the road this frame)
+        const uNow = mix(rollFromU, u, bk);
+        road.getPointAt(uNow, rollP);
+        road.getTangentAt(uNow, rollT);
+        rollEndOff.copy(car.position).sub(road.getPointAt(u, rollEnd)); // the car park lies beyond the road's end
+        rollFilmPos.copy(car.position);
+        rollFilmQ.copy(car.quaternion);
+        car.position.copy(rollP);
+        car.lookAt(rollEnd.copy(rollP).add(rollT)); // nose along the road
+        rollQ.copy(car.quaternion);
+        // Where it stopped, off the centre line, it first straightens up onto the road; at the far end it settles into the film's pose
+        car.quaternion.slerpQuaternions(fromCarQ, rollQ, smooth(0, 0.4, bk));
+        car.quaternion.slerp(rollFilmQ, smooth(0.7, 1, bk));
+        car.position.copy(rollP).addScaledVector(rollFromOff, 1 - smooth(0, 0.35, bk)).addScaledVector(rollEndOff, smooth(0.65, 1, bk));
+        // A short way along the road (both ends in the car park, say): go straight there instead of via the road
+        const viaRoad = clamp01((Math.abs(u - rollFromU) * ROAD_LEN) / 8);
+        if (viaRoad < 1) car.position.lerpVectors(rollEnd.lerpVectors(fromCarPos, rollFilmPos, bk), car.position, viaRoad);
+        wheelSpin += ((uNow - rollPrevU) * ROAD_LEN) / wheelRadius; // the wheels turn as it rolls
+        rollPrevU = uNow;
+        camPos.copy(car.position).add(rollCamRel);
+        camLook.copy(car.position).add(rollLookRel);
       }
     }
+    // Keep the camera out of the hillside while it glides too
+    if (bk < 1 && !inside) camPos.y = Math.max(camPos.y, heightAt(camPos.x, camPos.z) + 0.75);
     camera.position.copy(camPos);
     camera.lookAt(camLook);
     shownCam.copy(camPos);
