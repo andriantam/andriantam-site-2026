@@ -1,20 +1,21 @@
 ---
-import Base from "../layouts/Base.astro";
-import PageHero from "../components/PageHero.astro";
-import { abs, breadcrumbSchema, PERSON_ID } from "../lib/schema";
-import header from "../assets/photos/automotive-header.jpg";
-import { LENSES, TIMES } from "../scripts/sim/data";
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+import header from "../../assets/photos/automotive-header.jpg";
+import { LENSES, TIMES } from "../../scripts/sim/data";
 
 const schema = [
   breadcrumbSchema([
     { name: "Home", path: "/" },
     { name: "Play", path: "/play" },
+    { name: "Photography Simulator", path: "/play/photography-simulator" },
   ]),
   {
     "@type": "VideoGame",
     name: "Photography Simulator",
     alternateName: ["Photographer Simulator", "Camera simulator"],
-    url: abs("/play"),
+    url: abs("/play/photography-simulator"),
     description:
       "A free, browser-based 3D photography simulator. Walk around a car at a mountain-pass lay-by, drive it into position, pick the time of day, choose from seven prime lenses, set shutter speed, aperture, ISO and flash, and take photos rendered with physically based exposure, depth of field and motion blur. Photos are kept in a gallery and can be exported as a PDF shoot guide.",
     genre: ["Simulation"],
@@ -27,7 +28,7 @@ const schema = [
 ];
 ---
 
-<Base image="/og/play.jpg" imageAlt="The photography simulator: a car in a mountain car park at night"
+<Base image="/og/photography-simulator.jpg" imageAlt="The photography simulator: a car in a mountain car park at night"
   title="Photography Simulator: a free 3D camera game"
   description="A free photography simulator in your browser. Walk around a car at a mountain pass from morning to night, drive it into position, pick a lens from 16mm to 200mm, set shutter, aperture, ISO and flash, and take real photos with physically based exposure, depth of field and motion blur. Export your shoot as a PDF guide. Built with three.js by andriantam."
   schema={schema}
@@ -38,7 +39,7 @@ const schema = [
     title="Photography Simulator"
     intro="A free 3D photography simulator you play in the browser. A car you can drive into position, a mountain-pass lay-by from morning to night, and a camera bag with seven lenses. Every photo is rendered from the 3D scene with real exposure, depth of field and motion blur."
     compact
-    crumbs={[{ name: "Home", path: "/" }, { name: "Play", path: "/play" }]}
+    crumbs={[{ name: "Home", path: "/" }, { name: "Play", path: "/play" }, { name: "Photography Simulator", path: "/play/photography-simulator" }]}
   />
 
   <section class="wrap sim-wrap">
@@ -1626,7 +1627,7 @@ const schema = [
 </style>
 
 <script>
-  import { mountSim } from "../scripts/sim/index";
+  import { mountSim } from "../../scripts/sim/index";
   // No zooming on the simulator page: pinch and double-tap zoom get in the way of playing.
   // iPhone ignores "user-scalable=no", so block its pinch gestures and multi-finger page moves directly.
   {

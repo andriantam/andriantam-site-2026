@@ -1,0 +1,184 @@
+---
+// Play: a grid of the games and apps I've built that you can try in the browser.
+import { Image } from "astro:assets";
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+import { GAMES, gameUrl } from "../../data/games";
+import header from "../../assets/photos/automotive-header.jpg";
+
+const crumbs = [
+  { name: "Home", path: "/" },
+  { name: "Play", path: "/play" },
+];
+const live = GAMES.filter((g) => g.status === "live");
+const schema = [
+  breadcrumbSchema(crumbs),
+  {
+    "@type": "CollectionPage",
+    name: "Play: games and apps by andriantam",
+    url: abs("/play"),
+    author: { "@id": PERSON_ID },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: live.map((g, i) => ({ "@type": "ListItem", position: i + 1, url: abs(gameUrl(g)), name: g.title })),
+    },
+  },
+];
+---
+
+<Base image="/og/play.jpg" imageAlt="A car at a mountain pass at night, from the photography simulator"
+  title="Play: free browser games and apps"
+  description="Free games and apps by Andrian Tam that run in your browser, no install: a 3D photography simulator and more on the way."
+  schema={schema}
+>
+  <PageHero
+    image={header}
+    eyebrow="Play"
+    title="Games and apps"
+    intro="Things I've built for fun that you can try right in the browser. No install, no sign-up. Pick one."
+    compact
+    crumbs={crumbs}
+  />
+
+  <section class="wrap games" aria-label="Games and apps">
+    <ul class="grid">
+      {
+        GAMES.map((g) => {
+          const live = g.status === "live";
+          const Tag = live ? "a" : "div";
+          return (
+            <li>
+              <Tag class:list={["card", { soon: !live }]} href={live ? gameUrl(g) : undefined}>
+                <span class="thumb">
+                  <Image src={g.image} alt={g.imageAlt} widths={[400, 640, 960]} sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw" loading="lazy" />
+                  <span class="kind">{g.kind}</span>
+                  {!live && <span class="badge">Coming soon</span>}
+                </span>
+                <span class="body">
+                  <h2>{g.title}</h2>
+                  <p>{g.tagline}</p>
+                  <span class="meta">{g.tags.join(" · ")} · {g.platforms}</span>
+                </span>
+              </Tag>
+            </li>
+          );
+        })
+      }
+      <li>
+        <div class="card more">
+          <span class="body">
+            <h2>More on the way</h2>
+            <p>New games and apps will land here as I build them.</p>
+          </span>
+        </div>
+      </li>
+    </ul>
+  </section>
+</Base>
+
+<style>
+  .games {
+    padding-block: 2.5rem 5rem;
+  }
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  }
+  .grid li {
+    display: flex;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    color: var(--text);
+    text-decoration: none;
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s var(--ease);
+  }
+  a.card:hover,
+  a.card:focus-visible {
+    border-color: var(--gold);
+    transform: translateY(-3px);
+  }
+  .thumb {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: var(--ink-3);
+  }
+  .thumb :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .soon .thumb :global(img) {
+    filter: grayscale(1) brightness(0.6);
+  }
+  .kind,
+  .badge {
+    position: absolute;
+    top: 0.7rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: rgba(11, 10, 14, 0.75);
+    backdrop-filter: blur(6px);
+  }
+  .kind {
+    left: 0.7rem;
+    color: var(--gold);
+  }
+  .badge {
+    right: 0.7rem;
+    color: var(--text-2);
+  }
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1.1rem 1.2rem 1.3rem;
+  }
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+  }
+  p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.95rem;
+  }
+  .meta {
+    margin-top: auto;
+    padding-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-3);
+  }
+  .more {
+    justify-content: center;
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--line-strong);
+    min-height: 12rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      transition: none;
+    }
+    a.card:hover {
+      transform: none;
+    }
+  }
+</style>
