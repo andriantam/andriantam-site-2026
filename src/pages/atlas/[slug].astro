@@ -1,4 +1,5 @@
 ---
+import { fitDescription } from "../../lib/meta";
 // One plain page per star in the atlas, so every node can be read, linked and indexed without 3D.
 import Base from "../../layouts/Base.astro";
 import PageHero from "../../components/PageHero.astro";
@@ -18,7 +19,7 @@ const crumbs = [
 ];
 ---
 
-<Base image="/og/atlas.jpg" imageAlt="The Atlas: everything andriantam does, drawn as constellations" title={`${n.label} · Atlas`} description={n.blurb} schema={[breadcrumbSchema(crumbs)]}>
+<Base image="/og/atlas.jpg" imageAlt="The Atlas: everything andriantam does, drawn as constellations" title={`${n.label} · Atlas`} description={fitDescription(n.blurb, "Part of the Atlas: everything Andrian Tam does and has built, and where.")} schema={[breadcrumbSchema(crumbs)]}>
   <PageHero eyebrow={[cluster.label, KIND_LABELS[n.kind], n.when].filter(Boolean).join(" · ")} title={n.label} intro={n.blurb} compact crumbs={crumbs} />
   <section class="wrap body" style={`--c:${cluster.color}`}>
     {n.tags && n.tags.length > 0 && <p class="tags">{n.tags.join(" · ")}</p>}

@@ -5,7 +5,10 @@ export const SITE = {
   // Full name: in the home page heading, the resume and the Person structured data.
   person: "Andrian Tam",
   handle: "andriantam",
-  title: "Andrian Tam (andriantam) | Photographer, software engineer and brand builder",
+  title: "Andrian Tam | Photographer, Software Engineer, Brand Builder",
+  // 150-160 characters: what Bing and Google show in results without truncating. Used for <meta name="description">.
+  metaDescription:
+    "Andrian Tam is a Singapore photographer, software engineer and brand builder: 15 years behind the camera, 6 at McKinsey, now Head of Brand at TROOPERS.",
   // The three roles, in this order, everywhere they appear.
   roles: ["Photographer", "Software engineer", "Brand builder"],
   description:
