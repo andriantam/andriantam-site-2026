@@ -5,6 +5,9 @@ import { RESUME } from "../data/resume";
 
 const abs = (path: string) => new URL(path, SITE.url).toString();
 
+// Where people can license a photo. Feeds the image "Licensable" fields Google reads (license, acquireLicensePage).
+export const LICENSE_URL = abs("/licensing");
+
 export const PERSON_ID = abs("/#person");
 export const WEBSITE_ID = abs("/#website");
 

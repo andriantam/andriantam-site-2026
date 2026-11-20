@@ -20,13 +20,13 @@ function legacyRedirects() {
           const f = path.resolve("src/data/snapshots", `${name}.json`);
           return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : [];
         };
+        // Cloudflare Pages allows 2,000 static rules but only 100 dynamic (wildcard or :splat) ones, and an early
+        // wildcard can push every later rule into the dynamic budget. So: all exact rules first, wildcards last.
         const lines = [
           "# Generated at build time by astro.config.mjs",
           "/article /articles 301",
           "/web-development /portfolio 301",
           "/photography /portfolio 301",
-          "/project/* /portfolio 301",
-          "/journal/* /articles/:splat 301",
         ];
         const hidden = new Set(JSON.parse(fs.readFileSync(path.resolve("src/data/hidden-articles.json"), "utf8")).titles);
         for (const a of read("articles")) {
@@ -34,13 +34,22 @@ function legacyRedirects() {
           else lines.push(`/article/${a.id} /articles/${a.slug} 301`);
         }
         for (const a of read("albums")) lines.push(`/portfolio/${a.id} /portfolio/${a.slug} 301`);
-        lines.push("/article/* /articles 301");
+        lines.push("/project/* /portfolio 301", "/journal/* /articles/:splat 301", "/article/* /articles 301");
         const out = new URL("_redirects", dir);
         fs.writeFileSync(out, lines.join("\n") + "\n");
         logger.info(`wrote ${lines.length - 1} redirects`);
 
-        // Hosts without _redirects support (DigitalOcean App Platform): write a small redirect page at each
-        // exact old URL, and teach the 404 page the wildcard rules.
+        // Cloudflare Pages reads _redirects and sends real 301s. A static file at an old URL would take
+        // precedence over a redirect rule, so no stub pages are written there (Pages sets CF_PAGES=1 while building).
+        if (process.env.CF_PAGES) {
+          logger.info("Cloudflare Pages build: using _redirects only, no redirect pages");
+          return;
+        }
+
+        // Any other static host without _redirects support (for example DigitalOcean App Platform): write a small
+        // redirect page at each exact old URL, and teach the 404 page the wildcard rules. These pages answer with
+        // HTTP 200, so they are a fallback only. They are deliberately NOT noindex: noindex on a page that points at
+        // a canonical tells Google to drop the old URL instead of passing its ranking to the new one.
         const root = decodeURIComponent(dir.pathname);
         const rules = lines.filter((l) => l.startsWith("/")).map((l) => l.split(" "));
         let stubs = 0;
@@ -53,7 +62,7 @@ function legacyRedirects() {
           fs.writeFileSync(
             file,
             `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Moved</title>` +
-              `<link rel="canonical" href="${url}"><meta name="robots" content="noindex">` +
+              `<link rel="canonical" href="${url}">` +
               `<meta http-equiv="refresh" content="0; url=${to}"><script>location.replace(${JSON.stringify(to)})</script>` +
               `</head><body><a href="${to}">This page has moved.</a></body></html>`,
           );
