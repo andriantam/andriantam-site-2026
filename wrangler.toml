@@ -1,0 +1,10 @@
+# Cloudflare Workers static assets config (used by Workers Builds: `npx wrangler deploy`).
+# html_handling must be drop-trailing-slash: the site's canonicals and sitemap use no trailing slash,
+# and the default (auto-trailing-slash) 307-redirects /articles to /articles/.
+name = "andriantam-site"
+compatibility_date = "2026-01-01"
+
+[assets]
+directory = "./dist"
+html_handling = "drop-trailing-slash"
+not_found_handling = "404-page"

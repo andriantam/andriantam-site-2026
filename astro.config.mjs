@@ -39,10 +39,10 @@ function legacyRedirects() {
         fs.writeFileSync(out, lines.join("\n") + "\n");
         logger.info(`wrote ${lines.length - 1} redirects`);
 
-        // Cloudflare Pages reads _redirects and sends real 301s. A static file at an old URL would take
-        // precedence over a redirect rule, so no stub pages are written there (Pages sets CF_PAGES=1 while building).
-        if (process.env.CF_PAGES) {
-          logger.info("Cloudflare Pages build: using _redirects only, no redirect pages");
+        // Cloudflare reads _redirects and sends real 301s. A static file at an old URL could take precedence over
+        // a redirect rule, so no stub pages are written there (Pages builds set CF_PAGES=1, Workers Builds set WORKERS_CI=1).
+        if (process.env.CF_PAGES || process.env.WORKERS_CI) {
+          logger.info("Cloudflare build: using _redirects only, no redirect pages");
           return;
         }
 
