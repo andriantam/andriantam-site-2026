@@ -21,6 +21,12 @@ async function load<T>(name: string, fetcher: () => Promise<T>): Promise<T> {
   if (process.env.OFFLINE !== "1") {
     try {
       const data = await fetcher();
+      // A fetch that "succeeds" with nothing (wrong key, wrong id, API hiccup) must never wipe out the content
+      // the site already has: keep the committed snapshot instead of publishing an empty site.
+      if (Array.isArray(data) && data.length === 0 && fs.existsSync(file)) {
+        console.warn(`[data] ${name}: live fetch returned 0 items, keeping the committed snapshot.`);
+        return JSON.parse(fs.readFileSync(file, "utf8")) as T;
+      }
       fs.mkdirSync(DIR, { recursive: true });
       fs.writeFileSync(file, JSON.stringify(data, null, 1));
       return data;

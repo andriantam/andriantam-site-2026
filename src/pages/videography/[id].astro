@@ -1,0 +1,128 @@
+---
+// One page per film, so Google can index each video ("Video isn't on a watch page" otherwise).
+import Base from "../../layouts/Base.astro";
+import PageHero from "../../components/PageHero.astro";
+import { VIDEOS } from "../../data/content";
+import { fitDescription } from "../../lib/meta";
+import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+
+export function getStaticPaths() {
+  return VIDEOS.map((video) => ({ params: { id: video.id }, props: { video } }));
+}
+
+const { video } = Astro.props;
+const path = `/videography/${video.id}`;
+const thumb = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
+const description =
+  video.client === "andriantam"
+    ? `${video.title}. A film by andriantam.`
+    : `${video.title}. A film by andriantam for ${video.client}.`;
+
+const schema = [
+  breadcrumbSchema([
+    { name: "Home", path: "/" },
+    { name: "Portfolio", path: "/portfolio" },
+    { name: "Videography", path: "/portfolio/videography" },
+    { name: video.title, path },
+  ]),
+  {
+    "@type": "VideoObject",
+    name: video.title,
+    description,
+    thumbnailUrl: thumb,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${video.id}`,
+    contentUrl: `https://www.youtube.com/watch?v=${video.id}`,
+    creator: { "@id": PERSON_ID },
+    url: abs(path),
+  },
+];
+---
+
+<Base title={video.title} description={fitDescription(description, "Watch the film and see more videography and reels by andriantam.")} image={thumb} imageAlt={video.title} type="website" schema={schema}>
+  <PageHero
+    eyebrow="Video"
+    title={video.title}
+    intro={video.client === "andriantam" ? "A film by andriantam." : `A film by andriantam for ${video.client}.`}
+    compact
+    crumbs={[
+      { name: "Home", path: "/" },
+      { name: "Portfolio", path: "/portfolio" },
+      { name: "Videography", path: "/portfolio/videography" },
+      { name: video.title, path },
+    ]}
+  />
+
+  <section class="wrap watch">
+    <button class="yt" type="button" data-yt={video.id} aria-label={`Play ${video.title}`}>
+      <img src={thumb} alt="" width="480" height="360" />
+      <span class="play" aria-hidden="true"></span>
+    </button>
+    <p><a href="/portfolio/videography">← All films</a></p>
+  </section>
+</Base>
+
+<style>
+  .watch {
+    padding-bottom: 6rem;
+    max-width: 960px;
+  }
+  .yt {
+    all: unset;
+    cursor: pointer;
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #000;
+  }
+  .yt:focus-visible {
+    outline: 2px solid var(--gold);
+  }
+  .yt img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .play {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(11, 10, 14, 0.7);
+    border: 1px solid var(--gold);
+  }
+  .play::after {
+    content: "";
+    position: absolute;
+    left: 27px;
+    top: 21px;
+    border-left: 20px solid var(--gold);
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+  }
+  .yt :global(iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>
+
+<script>
+  // YouTube facade: the heavy player only loads when someone clicks play.
+  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-yt]")) {
+    btn.addEventListener("click", () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${btn.dataset.yt}?autoplay=1&rel=0`;
+      iframe.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+      iframe.allowFullscreen = true;
+      iframe.title = btn.getAttribute("aria-label")?.replace("Play ", "") ?? "YouTube video";
+      btn.replaceChildren(iframe);
+    }, { once: true });
+  }
+</script>
