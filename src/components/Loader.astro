@@ -3,13 +3,15 @@
 // and a few lines of script, so it paints before anything else on the page. The words move on a quarter of
 // the way at a time as the page reports how much is in (window.__loader.progress(0..1)), ending on "What's
 // next is up to you". When everything is in (window.__loader.done()), the star bursts into many stars
-// that fly out and fade over the landing page.
+// that fly out and fade over the landing page. The lite version (phones by default, ?lite, lite.*, or a
+// device that skips the 3D) gets a much simpler one: the word "Loading", a thin progress line, a quick fade.
 ---
 
 <div class="loader" id="loader" role="status" aria-live="polite">
   <div class="loader-bg"></div>
   <canvas class="loader-burst" aria-hidden="true"></canvas>
   <i class="loader-star" aria-hidden="true"></i>
+  <i class="loader-bar" aria-hidden="true"></i>
   <p class="loader-text"><span class="loader-line">Loading hopes</span><span class="loader-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
 </div>
 <noscript><style>.loader{display:none!important}html.loading{overflow:auto!important}</style></noscript>
@@ -121,6 +123,36 @@
   .loader.out .loader-text {
     opacity: 0;
   }
+  /* Lite: no star, no burst; the word "Loading", a thin line that fills, and a quick fade */
+  .loader-bar {
+    display: none;
+  }
+  .loader.lite .loader-star,
+  .loader.lite .loader-dots {
+    display: none;
+  }
+  .loader.lite .loader-text {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .loader.lite .loader-bar {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.75);
+    transform: scaleX(0.05);
+    transform-origin: 0 50%;
+    transition: transform 0.4s ease;
+  }
+  .loader.lite.out .loader-bg {
+    transition: opacity 0.35s ease;
+  }
+  .loader.lite.out .loader-bar {
+    opacity: 0;
+  }
   @keyframes loader-dot {
     0%, 15% { opacity: 0; transform: translateY(0); }
     30% { opacity: 1; transform: translateY(-3px); }
@@ -155,10 +187,31 @@
     var el = document.getElementById("loader");
     if (!el) return;
     document.documentElement.classList.add("loading");
+    // Same test as the home page uses to pick the photo story over the 3D (see Pass.astro)
+    var q = new URLSearchParams(location.search), chose3d = q.has("3d"), lite = false;
+    try {
+      chose3d = chose3d || sessionStorage.getItem("pass3d") === "1";
+    } catch (e) {}
+    var nav = navigator;
+    if (document.querySelector("[data-pass]") || document.getElementById("pass-data") || location.pathname === "/") {
+      lite =
+        q.has("lite") ||
+        ((location.hostname.indexOf("lite.") === 0 || matchMedia("(max-width: 820px) and (pointer: coarse)").matches) && !chose3d) ||
+        matchMedia("(prefers-reduced-motion: reduce)").matches ||
+        (nav.deviceMemory || 8) <= 2 ||
+        !!(nav.connection && nav.connection.saveData);
+    }
+    if (lite) el.classList.add("lite");
     // A quarter of the load each: hopes, dreams, the passion, then it's over to you. Each line stays up
     // long enough to read, so a fast load still steps through them rather than flickering.
     var LINES = ["Loading hopes", "Loading dreams", "Fuelling the passion", "What’s next is up to you"];
     var HOLD = 1300; // ms each line stays up, at the least
+    var bar = el.querySelector(".loader-bar");
+    if (lite) {
+      LINES = ["Loading"];
+      HOLD = 0;
+      el.querySelector(".loader-line").textContent = "Loading";
+    }
     var lineEl = el.querySelector(".loader-line");
     var shown = 0, want = 0, swappedAt = performance.now(), finished = false, burstAt = 0;
     function swapTo(i) {
@@ -181,6 +234,7 @@
       }
     }, 60);
     function progress(p) {
+      if (lite && bar) bar.style.transform = "scaleX(" + Math.max(0.05, Math.min(1, p)).toFixed(2) + ")";
       want = Math.max(want, Math.min(LINES.length - 1, Math.floor(p * LINES.length)));
     }
     // Everything is in: step on to the last line, give it a moment to be read, then burst.
@@ -190,14 +244,15 @@
       want = LINES.length - 1;
     }
     function burst() {
-      var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var calm = lite || matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (lite && bar) bar.style.transform = "scaleX(1)";
       el.classList.add("out");
       el.setAttribute("aria-busy", "false");
       document.documentElement.classList.remove("loading");
       var end = function () {
         el.remove();
       };
-      if (calm) return void setTimeout(end, 600);
+      if (calm) return void setTimeout(end, lite ? 450 : 600);
       // The burst: stars fly out from the centre, slowing as they go, twinkle, then fade.
       var cv = el.querySelector("canvas");
       var g = cv.getContext("2d");
