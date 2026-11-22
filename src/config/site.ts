@@ -54,4 +54,9 @@ export const ADS = {
 // Cloudflare Web Analytics (cookieless). Paste the token from the Cloudflare dashboard.
 export const ANALYTICS = {
   cloudflareToken: "",
+  // Google Analytics 4 measurement id (GA admin > Data streams) and Tag Manager container id.
+  // Set PUBLIC_GA_MEASUREMENT_ID and PUBLIC_GTM_ID in .env locally and in the Cloudflare build variables; leave
+  // either unset to skip it. Don't also add a GA4 config tag for the same id inside GTM, or page views count twice.
+  gaMeasurementId: (import.meta.env.PUBLIC_GA_MEASUREMENT_ID as string | undefined) || "",
+  gtmId: (import.meta.env.PUBLIC_GTM_ID as string | undefined) || "",
 };

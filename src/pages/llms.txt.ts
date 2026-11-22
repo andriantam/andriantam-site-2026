@@ -42,7 +42,9 @@ ${FAQ.map((f) => `### ${f.q}\n${f.a}`).join("\n\n")}
 - [Videography](${u("/portfolio/videography")})
 - [Resume](${u("/resume")})
 - [Articles](${u("/articles")})
-- [Photography Simulator](${u("/play")}): a free 3D photography simulator game in the browser with seven lenses and physically based exposure, depth of field and motion blur
+- [Play: games and apps](${u("/play")}): a grid of free games and apps by andriantam that run in the browser
+- [Photography Simulator](${u("/play/photography-simulator")}): a free 3D photography simulator game in the browser with seven lenses and physically based exposure, depth of field and motion blur
+- [Through the Wall](${u("/play/through-the-wall")}): a free webcam game for one or two players: strike the pose to fit through a wall's person-shaped hole, with body tracking on-device
 
 ## Portfolio albums
 

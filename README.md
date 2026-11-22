@@ -7,7 +7,7 @@ Static Astro site for Andrian Tam: photographer, software engineer and brand bui
 - **Portfolio:** client work, clients and testimonials on one page. **Gallery:** personal albums (Flickr categories personal, travel, astro, landscape, street, film).
 - **Portfolio:** Flickr albums, fetched at build time. Web and software projects are supported but hidden (`FLAGS.showDevProjects`).
 - **Articles:** Blogger posts, fetched at build time, with AdSense on article pages only.
-- **Resume**, the **Photographer Simulator** at `/play`, `llms.txt`, RSS, a sitemap and 301s for every old URL.
+- **Resume**, **Play** (`/play`, a grid of games and apps registered in `src/data/games.ts`; the **Photographer Simulator** is at `/play/photography-simulator`), `llms.txt`, RSS, a sitemap and 301s for every old URL.
 
 ## Run it
 
@@ -64,7 +64,22 @@ Known categories: automotive, events, corporate, couple, products, food, and the
 
 Moving from DigitalOcean App Platform? Follow `docs/cloudflare-migration.md`.
 
-## Photographer Simulator (`/play`)
+## Through the Wall (`/play/through-the-wall`)
+
+A webcam game for one or two players: a wall with a person-shaped hole rushes at you and you strike the pose to fit through.
+Tracking is MediaPipe's pose landmarker, self-hosted (`public/pose/`: the lite model and its wasm, about 35 MB); the video never leaves the device.
+
+| File | What it does |
+|---|---|
+| `src/scripts/pose/tracker.ts` | Loads the model, opens the camera, and reports up to two people per frame |
+| `src/scripts/wall/poses.ts` | The pose library: each pose is eight limb directions plus the torso lean, so every cutout is a shape a body can really hold. `problems()` checks elbow and knee bend and planted feet |
+| `src/scripts/wall/game.ts` | Rounds, lives, scoring, the wall and cutout drawing, and the judge |
+
+The judge compares the direction of each limb (not position or size) with the pose, with a tolerance per limb. A pass needs a high overall match and no limb badly wrong, held for 350 ms in the wall's last second.
+To add a pose, add a `pose(...)` line to `poses.ts`: angles are screen directions as the player sees themselves (0 right, 90 down, 270 up), left limbs first, right mirrored unless you pass `r`.
+`/play/through-the-wall?debug` exposes `window.__wall` (including `feed()` to inject fake bodies) for testing.
+
+## Photographer Simulator (`/play/photography-simulator`)
 
 A three.js scene in `src/scripts/sim/`:
 
@@ -79,7 +94,7 @@ Assets in `public/sim/` are CC0 from [Poly Haven](https://polyhaven.com): the "C
 
 ### The car
 
-`public/sim/car.glb` is "Subaru WRX STI" by skyfaltus (Skyborg) on Sketchfab, CC BY 4.0. The credit is on the `/play` page and must stay there.
+`public/sim/car.glb` is "Subaru WRX STI" by skyfaltus (Skyborg) on Sketchfab, CC BY 4.0. The credit is on the simulator page and must stay there.
 The original is about 7.8 million triangles (236 MB). `scripts/optimize-car.mjs` shrinks it to about 1.7 million (10.6 MB):
 body paint, glass and badges stay at full detail (simplifying the paint breaks its shading and shows pale patches on the doors),
 and everything else is simplified to 6%.
@@ -91,4 +106,4 @@ node scripts/optimize-car.mjs ~/Downloads/subaru_wrx_sti/scene.gltf public/sim/c
 `world.ts` then scales it to 4.6 m, puts the wheels on the ground, switches the lamps off and tunes the paint and plastics
 (`tuneCarMaterial`). If `car.glb` is missing, a stand-in car built from primitives is used.
 
-`/play?debug` exposes `window.__sim` for automated testing.
+`/play/photography-simulator?debug` exposes `window.__sim` for automated testing.

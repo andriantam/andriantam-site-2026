@@ -1,7 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import PageHero from "../../components/PageHero.astro";
-import { getArticles, sizedBloggerImage } from "../../lib/blogger";
+import { getArticles, lightBloggerImage } from "../../lib/blogger";
 import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
 import header from "../../assets/photos/article-header.jpg";
 
@@ -51,8 +51,8 @@ const schema = [
             <a href={`/articles/${a.slug}`}>
               {a.image && (
                 <img
-                  src={sizedBloggerImage(a.image, i === 0 ? 1400 : 720)}
-                  srcset={`${sizedBloggerImage(a.image, 480)} 480w, ${sizedBloggerImage(a.image, 720)} 720w, ${sizedBloggerImage(a.image, 1400)} 1400w`}
+                  src={lightBloggerImage(a.image, i === 0 ? 1400 : 720)}
+                  srcset={`${lightBloggerImage(a.image, 480)} 480w, ${lightBloggerImage(a.image, 720)} 720w, ${lightBloggerImage(a.image, 1400)} 1400w`}
                   sizes={i === 0 ? "(min-width: 900px) 60vw, 100vw" : "(min-width: 900px) 33vw, 100vw"}
                   alt=""
                   loading={i < 2 ? "eager" : "lazy"}

@@ -90,6 +90,19 @@ const jsonLd = graph(websiteSchema(), personSchema(), ...schema);
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
     {
+      (ANALYTICS.gaMeasurementId || ANALYTICS.gtmId) && (
+        <script
+          is:inline
+          set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',region:['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','CH']});${
+            ANALYTICS.gtmId ? `\nwindow.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});` : ""
+          }${ANALYTICS.gaMeasurementId ? `\ngtag('js',new Date());gtag('config','${ANALYTICS.gaMeasurementId}');` : ""}`}
+        />
+      )
+    }
+    {ANALYTICS.gaMeasurementId && <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.gaMeasurementId}`} />}
+    {ANALYTICS.gtmId && <script is:inline async src={`https://www.googletagmanager.com/gtm.js?id=${ANALYTICS.gtmId}`} />}
+    {
       ads && ADS.client && (
         <script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADS.client}`} crossorigin="anonymous" />
       )
@@ -102,6 +115,13 @@ const jsonLd = graph(websiteSchema(), personSchema(), ...schema);
     <slot name="head" />
   </head>
   <body>
+    {
+      ANALYTICS.gtmId && (
+        <noscript>
+          <iframe src={`https://www.googletagmanager.com/ns.html?id=${ANALYTICS.gtmId}`} height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager" />
+        </noscript>
+      )
+    }
     <a class="skip" href="#main">Skip to content</a>
     <Header minimal={minimalHeader} />
     <main id="main">

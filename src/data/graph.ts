@@ -388,7 +388,7 @@ export const NODES: GraphNode[] = [
     blurb:
       "The thread through everything else. I like making things with my own hands, and I care how they look. Software, brand and photography are the same urge in different materials, and on my own time it shows up as night-sky photography, working on my car, and building things like the photography simulator and this website.",
     links: ["engineering", "brand", "photography"],
-    href: "/play",
+    href: "/play/photography-simulator",
     hrefLabel: "Play the photography simulator",
   },
 
