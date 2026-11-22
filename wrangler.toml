@@ -8,3 +8,7 @@ compatibility_date = "2026-01-01"
 directory = "./dist"
 html_handling = "drop-trailing-slash"
 not_found_handling = "404-page"
+
+# Needed by `npx wrangler preview` (the Preview command Cloudflare runs for branch builds). Empty on purpose:
+# assets and compatibility settings are inherited from above. Production deploys ignore it.
+[previews]
