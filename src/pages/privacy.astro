@@ -2,10 +2,10 @@
 import Base from "../layouts/Base.astro";
 import PageHero from "../components/PageHero.astro";
 import { SITE, ANALYTICS } from "../config/site";
-const updated = "9 November 2026";
+const updated = "22 November 2026";
 ---
 
-<Base title="Privacy policy" description="How andriantam.com handles your data: cookieless analytics, and Google AdSense on article pages only.">
+<Base title="Privacy policy" description="How andriantam.com handles your data: Google Analytics, and Google AdSense on article pages only.">
   <PageHero eyebrow="Privacy" title="Privacy policy" intro={`Last updated ${updated}.`} compact />
   <section class="wrap prose">
     <p>
@@ -16,8 +16,10 @@ const updated = "9 November 2026";
     <h2>What is collected</h2>
     <ul>
       <li>
-        <strong>Analytics{ANALYTICS.cloudflareToken ? "" : " (if enabled)"}.</strong> Cloudflare Web Analytics counts page views
-        without cookies and without tracking you across sites. No personal data is stored.
+        <strong>Analytics.</strong> The site uses Google Analytics, loaded through Google Tag Manager, to count page views and see
+        which pages are read. It sets cookies and sends anonymised usage data to Google. Visitors in the European Economic Area,
+        the UK and Switzerland are not measured by it unless consent is given. You can opt out with the
+        <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Google Analytics opt-out add-on</a>.
       </li>
       <li>
         <strong>Advertising on article pages.</strong> Article pages show Google AdSense ads. Google may use cookies to show and
