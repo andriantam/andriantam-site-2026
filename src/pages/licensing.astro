@@ -1,0 +1,32 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHero from "../components/PageHero.astro";
+import { SITE } from "../config/site";
+import { fitDescription } from "../lib/meta";
+---
+
+<Base
+  title="Licensing and usage"
+  description={fitDescription(
+    "How to license andriantam's photos and videos for editorial, commercial or personal use.",
+    "Get in touch for rates, usage terms and credit requirements.",
+  )}
+>
+  <PageHero eyebrow="Licensing" title="Licensing and usage" intro="Photos and videos on this site are copyrighted work." compact />
+  <section class="wrap prose">
+    <p>
+      All photos and videos on andriantam.com are © {SITE.name}, unless a page says otherwise. Please don't copy, republish or
+      use them without permission.
+    </p>
+
+    <h2>License a photo or video</h2>
+    <p>
+      For editorial, commercial, event or personal use, email
+      <a href={`mailto:${SITE.email}`}>{SITE.email}</a> with the photo or album, where you plan to use it, and for how long. I
+      reply with the licence terms and a fee, if one applies.
+    </p>
+
+    <h2>Credit</h2>
+    <p>Where I license work for free or at a reduced rate, the credit line is "Photo: andriantam".</p>
+  </section>
+</Base>

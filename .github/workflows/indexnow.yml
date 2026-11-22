@@ -1,0 +1,20 @@
+# Tells Bing (and other IndexNow engines) about every URL after each deploy,
+# so new Blogger posts and Flickr albums are indexed within minutes, not weeks.
+name: IndexNow
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Give Cloudflare Pages time to finish deploying before the engines come looking.
+      - run: sleep 180
+      - run: node scripts/indexnow.mjs

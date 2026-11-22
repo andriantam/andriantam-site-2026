@@ -5,7 +5,10 @@ export const SITE = {
   // Full name: in the home page heading, the resume and the Person structured data.
   person: "Andrian Tam",
   handle: "andriantam",
-  title: "Andrian Tam (andriantam) | Photographer, software engineer and brand builder",
+  title: "Andrian Tam | Photographer, Software Engineer, Brand Builder",
+  // 150-160 characters: what Bing and Google show in results without truncating. Used for <meta name="description">.
+  metaDescription:
+    "Andrian Tam is a Singapore photographer, software engineer and brand builder: 15 years behind the camera, 6 at McKinsey, now Head of Brand at TROOPERS.",
   // The three roles, in this order, everywhere they appear.
   roles: ["Photographer", "Software engineer", "Brand builder"],
   description:
@@ -52,7 +55,8 @@ export const ADS = {
 export const ANALYTICS = {
   cloudflareToken: "",
   // Google Analytics 4 measurement id (GA admin > Data streams) and Tag Manager container id.
-  // Don't also add a GA4 config tag for the same id inside GTM, or page views count twice.
-  gaMeasurementId: "G-3LXYCH61MC",
-  gtmId: "GTM-T2XPN4H",
+  // Set PUBLIC_GA_MEASUREMENT_ID and PUBLIC_GTM_ID in .env locally and in the Cloudflare build variables; leave
+  // either unset to skip it. Don't also add a GA4 config tag for the same id inside GTM, or page views count twice.
+  gaMeasurementId: (import.meta.env.PUBLIC_GA_MEASUREMENT_ID as string | undefined) || "",
+  gtmId: (import.meta.env.PUBLIC_GTM_ID as string | undefined) || "",
 };

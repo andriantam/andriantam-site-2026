@@ -1,9 +1,10 @@
 ---
+import { fitDescription } from "../../lib/meta";
 import Base from "../../layouts/Base.astro";
 import PageHero from "../../components/PageHero.astro";
 import FlickrImg from "../../components/FlickrImg.astro";
 import { getAlbums, photoUrl, photoSrcset, CATEGORY_LABELS, type Album } from "../../lib/flickr";
-import { abs, breadcrumbSchema, PERSON_ID } from "../../lib/schema";
+import { abs, breadcrumbSchema, LICENSE_URL, PERSON_ID } from "../../lib/schema";
 
 export async function getStaticPaths() {
   const albums = await getAlbums();
@@ -44,6 +45,8 @@ const schema = [
       creator: { "@id": PERSON_ID },
       copyrightNotice: "© andriantam",
       creditText: "andriantam",
+      license: LICENSE_URL,
+      acquireLicensePage: LICENSE_URL,
     })),
   },
 ];
@@ -51,7 +54,7 @@ const schema = [
 
 <Base
   title={`${album.title} photos`}
-  description={`${intro} View the gallery.`}
+  description={fitDescription(`${album.title}: ${intro}`, "Browse the full gallery from the andriantam portfolio.")}
   image={album.cover ? photoUrl(album.cover, 1024) : undefined}
   imageAlt={album.title}
   schema={schema}
