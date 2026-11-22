@@ -1,7 +1,7 @@
 // The registry behind /play. Add a game here and it appears in the grid; its page lives at src/pages/play/<slug>.astro.
 import type { ImageMetadata } from "astro";
 import automotive from "../assets/photos/automotive-header.jpg";
-import events from "../assets/photos/events-header.jpg";
+import wall from "../assets/photos/wall-header.jpg";
 
 export interface Game {
   slug: string; // page is /play/<slug>
@@ -40,8 +40,8 @@ export const GAMES: Game[] = [
       "A free webcam game for one or two players: a wall with a person-shaped hole rushes at you and you strike the pose to fit through. Body tracking runs in the browser and the video never leaves the device.",
     kind: "Game",
     tags: ["Webcam", "Body tracking", "1–2 players"],
-    image: events,
-    imageAlt: "A crowd of people in motion",
+    image: wall,
+    imageAlt: "A brick wall with a person-shaped hole cut out of it",
     status: "live",
     platforms: "Desktop and phone",
     added: "2026-11-17",
