@@ -93,6 +93,13 @@ export function sizedBloggerImage(url: string, width: number): string {
   return url;
 }
 
+// The same, but as lighter WebP at quality 70 (-l70-rw): roughly a third of the bytes of the original JPEG at
+// the same width. For images shown on the page. Link previews and structured data keep sizedBloggerImage (JPEG).
+export function lightBloggerImage(url: string, width: number): string {
+  const sized = sizedBloggerImage(url, width);
+  return sized === url ? url : sized.replace(/\/w(\d+)[^/]*\//, "/w$1-l70-rw/");
+}
+
 function firstImage(html: string): string | null {
   const m = html.match(/<img[^>]+src="([^"]+)"/i);
   return m ? m[1] : null;
@@ -132,9 +139,9 @@ function cleanHtml(html: string): string {
   out = out.replace(/<img([^>]*)>/gi, (_m, attrs: string) => {
     const src = attrs.match(/src="([^"]+)"/i)?.[1] ?? "";
     const alt = attrs.match(/alt="([^"]*)"/i)?.[1] ?? "";
-    const w = sizedBloggerImage(src, 1200);
-    const w2 = sizedBloggerImage(src, 2000);
-    const srcset = w !== src ? ` srcset="${sizedBloggerImage(src, 720)} 720w, ${w} 1200w, ${w2} 2000w" sizes="(min-width: 860px) 760px, 100vw"` : "";
+    const w = lightBloggerImage(src, 1200);
+    const w2 = lightBloggerImage(src, 2000);
+    const srcset = w !== src ? ` srcset="${lightBloggerImage(src, 640)} 640w, ${lightBloggerImage(src, 960)} 960w, ${w} 1200w, ${w2} 2000w" sizes="(min-width: 860px) 760px, 100vw"` : "";
     return `<img src="${w}"${srcset} alt="${alt}" loading="lazy" decoding="async">`;
   });
 

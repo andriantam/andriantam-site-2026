@@ -180,9 +180,12 @@ const cards = Object.fromEntries(
         <a class="btn btn-primary" data-card-link href="/atlas">Open its page →</a>
       </aside>
       <p class="hint">
-        <span class="three-only"><span class="touch-only">Tap a star · Drag to look around</span><span class="mouse-only">Move to look around · Click a star</span> · </span><a href="/atlas">See it as a list</a>
+        <span class="three-only"><span class="touch-only">Tap a star · Drag to look around</span><span class="mouse-only">Move to look around · Click a star</span> · <a href="/atlas">See it as a list</a></span>
         <span class="go" aria-hidden="true"><span class="touch-only">Swipe up</span><span class="mouse-only">Scroll</span><span class="three-only"> to start the drive</span><span class="slides-only"> for my story</span><i></i></span>
+        <button type="button" class="load3d" data-load3d hidden>Load the 3D experience</button>
       </p>
+      <!-- Phones in 3D: a small way back to lite, top left, out of the constellation's way -->
+      <button type="button" class="liteback" data-liteback hidden>Lite version</button>
     </header>
 
     {
@@ -285,6 +288,52 @@ const cards = Object.fromEntries(
   }
   .pass:not([data-fallback]) .slides-only {
     display: none;
+  }
+  /* Lite mode on a phone: a way to opt in to the 3D scene (the script unhides it when it applies) */
+  .load3d {
+    display: block;
+    margin: 0.7rem auto 0;
+    padding: 0.55rem 1.1rem;
+    font: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    background: rgba(8, 10, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .load3d[hidden] {
+    display: none;
+  }
+  .pass:not([data-fallback]) .load3d {
+    display: none;
+  }
+  /* Fixed and above the site header (z-index 50), which would otherwise cover it and take the tap */
+  .liteback {
+    position: fixed;
+    z-index: 60;
+    top: calc(env(safe-area-inset-top) + 0.9rem);
+    left: var(--gutter);
+    padding: 0.4rem 0.85rem;
+    font: inherit;
+    font-size: 0.74rem;
+    color: var(--text-2);
+    background: rgba(8, 10, 18, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 999px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .liteback[hidden],
+  .pass[data-fallback] .liteback {
+    display: none;
+  }
+  .liteback.away {
+    opacity: 0;
+    visibility: hidden;
   }
   .pass[data-fallback] canvas,
   .pass[data-fallback] .labels {
@@ -1635,9 +1684,49 @@ const cards = Object.fromEntries(
 
     // Only run the 3D where it will run well.
     const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
-    // The lite site (lite.andriantam.com, or ?lite to try it locally) always gets the photo story, no 3D.
-    const lite = location.hostname.startsWith("lite.") || new URLSearchParams(location.search).has("lite");
-    const skip = lite || matchMedia("(prefers-reduced-motion: reduce)").matches || (nav.deviceMemory ?? 8) <= 2 || nav.connection?.saveData;
+    // The lite site (lite.andriantam.com, or ?lite to try it locally) and phones get the photo story by default,
+    // with a button to load the 3D if you want it (remembered for the tab, or ?3d).
+    const params = new URLSearchParams(location.search);
+    const liteHost = location.hostname.startsWith("lite.");
+    const phone = matchMedia("(max-width: 820px) and (pointer: coarse)").matches;
+    let chose3d = params.has("3d");
+    try {
+      chose3d ||= sessionStorage.getItem("pass3d") === "1";
+    } catch {}
+    const liteByChoice = params.has("lite") || ((liteHost || phone) && !chose3d);
+    const lite = liteByChoice;
+    const otherSkip = matchMedia("(prefers-reduced-motion: reduce)").matches || (nav.deviceMemory ?? 8) <= 2 || nav.connection?.saveData;
+    const skip = lite || otherSkip;
+    const load3d = root.querySelector<HTMLButtonElement>("[data-load3d]");
+    // On a phone in 3D, a way back to the lite version (clears the remembered choice and the ?3d)
+    const liteBack = root.querySelector<HTMLButtonElement>("[data-liteback]");
+    if (liteBack && (phone || liteHost) && !lite && !otherSkip) {
+      liteBack.hidden = false;
+      // Only on the opening sky: it goes once you scroll on into the story or drive
+      const skyEl = root.querySelector<HTMLElement>("[data-sky]");
+      if (skyEl) new IntersectionObserver(([e]) => liteBack.classList.toggle("away", !e.isIntersecting)).observe(skyEl);
+      liteBack.addEventListener("click", () => {
+        try {
+          sessionStorage.removeItem("pass3d");
+        } catch {}
+        const url = new URL(location.href);
+        url.searchParams.delete("3d");
+        url.searchParams.delete("lite");
+        location.replace(url.toString());
+      });
+    }
+    if (load3d && liteByChoice && !otherSkip) {
+      load3d.hidden = false;
+      load3d.addEventListener("click", () => {
+        try {
+          sessionStorage.setItem("pass3d", "1");
+        } catch {}
+        const url = new URL(location.href);
+        url.searchParams.delete("lite");
+        url.searchParams.set("3d", "");
+        location.replace(url.toString());
+      });
+    }
     const start = async () => {
       // A very slow connection gets the picture story rather than an endless wait.
       setTimeout(() => !revealed && useSlides("timed out"), 30000);
